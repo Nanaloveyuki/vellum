@@ -1,0 +1,48 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Nanaloveyuki/vellum"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+pub let max_value_len : Int
+
+pub async fn open(String) -> Db raise DbError
+
+pub let page_size : Int
+
+// Errors
+pub(all) suberror DbError {
+  Closed
+  TxnOpen
+  ValueTooLarge
+  Corrupt
+  Io(String)
+} derive(Eq, @debug.Debug)
+pub fn DbError::equal(Self, Self) -> Bool
+pub fn DbError::not_equal(Self, Self) -> Bool
+pub fn DbError::output(Self, &Logger) -> Unit
+pub fn DbError::to_repr(Self) -> @debug.Repr
+pub fn DbError::to_string(Self) -> String
+pub impl Show for DbError
+
+// Types and methods
+pub struct Db {
+  // private fields
+}
+pub async fn Db::begin(Self) -> Txn raise DbError
+pub async fn Db::close(Self) -> Unit raise DbError
+
+pub struct Txn {
+  // private fields
+}
+pub async fn Txn::abort(Self) -> Unit raise DbError
+pub async fn Txn::commit(Self) -> Unit raise DbError
+pub async fn Txn::delete(Self, Bytes) -> Bool raise DbError
+pub async fn Txn::get(Self, Bytes) -> Bytes? raise DbError
+pub async fn Txn::put(Self, Bytes, Bytes) -> Unit raise DbError
+
+// Type aliases
+
+// Traits

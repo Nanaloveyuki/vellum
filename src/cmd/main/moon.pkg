@@ -1,0 +1,6 @@
+import {
+  "Nanaloveyuki/vellum",
+  "moonbitlang/async",
+}
+
+pkgtype(kind: "executable")
