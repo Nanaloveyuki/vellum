@@ -6,7 +6,7 @@ import {
   "moonbitlang/async@0.22.4",
 }
 
-description = "Embedded page store with a recoverable write-ahead log."
+description = "Single-file page store. One writer, crash recovery from a write-ahead log."
 
 repository = "https://github.com/Nanaloveyuki/vellum"
 

@@ -1,4 +1,5 @@
 ///|
+/// 打开的页库。一个路径对应一个文件，同时只能有一个事务。
 pub struct Db {
   priv path : String
   priv tree : Tree
@@ -8,6 +9,7 @@ pub struct Db {
 }
 
 ///|
+/// 当前这一次读写。`commit` 之后别的 `open` 才能看见；`abort` 则回到上次提交。
 pub struct Txn {
   priv db : Db
   priv base_pages : Map[Int, Bytes]
@@ -93,7 +95,7 @@ fn file_image(tree : Tree, txn_id : Int) -> Bytes {
 }
 
 ///|
-/// 打开或创建页文件。存在 WAL 时只重放校验完整且已提交的帧
+/// 打开 `path`。文件不存在就创建。若有 `path.wal`，只重放校验通过且已提交的帧，然后把 WAL 清空。
 pub async fn open(path : String) -> Db raise DbError {
   let (meta, pages) = read_page_file(path)
   let tree = Tree::new()
@@ -158,7 +160,7 @@ fn require_open(db : Db) -> Unit raise DbError {
 
 ///|
 #warnings("-unused_async")
-/// 开始唯一的一个事务。未提交的写入只有这个事务能看见
+/// 开始事务。已有未结束事务时抛 `DbError::TxnOpen`，库已关闭时抛 `DbError::Closed`。
 pub async fn Db::begin(self : Db) -> Txn raise DbError {
   require_open(self)
   guard self.txn is None else { raise DbError::TxnOpen }
@@ -179,6 +181,7 @@ pub async fn Db::begin(self : Db) -> Txn raise DbError {
 
 ///|
 #warnings("-unused_async")
+/// 按字节序查找 `key`。没有这个键时返回 `None`。
 pub async fn Txn::get(self : Txn, key : Bytes) -> Bytes? raise DbError {
   require_open(self.db)
   self.db.tree.get(key)
@@ -186,6 +189,7 @@ pub async fn Txn::get(self : Txn, key : Bytes) -> Bytes? raise DbError {
 
 ///|
 #warnings("-unused_async")
+/// 写入或覆盖。`value` 长于 `max_value_len`，或这一页放不下时，抛 `DbError::ValueTooLarge`。
 pub async fn Txn::put(
   self : Txn,
   key : Bytes,
@@ -197,6 +201,7 @@ pub async fn Txn::put(
 
 ///|
 #warnings("-unused_async")
+/// 删除 `key`。键存在并已删除返回 `true`，否则返回 `false`。
 pub async fn Txn::delete(self : Txn, key : Bytes) -> Bool raise DbError {
   require_open(self.db)
   self.db.tree.delete(key)
@@ -227,7 +232,7 @@ fn dirty_pages(txn : Txn) -> Array[Int] {
 }
 
 ///|
-/// 先写 WAL 和提交帧，再把帧刷进页文件，最后清空 WAL
+/// 落盘。先把脏页和提交帧同步到 WAL，再写入页文件，最后清空 WAL。
 pub async fn Txn::commit(self : Txn) -> Unit raise DbError {
   self.commit_until(pause_after_wal=false)
 }
@@ -269,7 +274,7 @@ async fn Txn::commit_until(
 
 ///|
 #warnings("-unused_async")
-/// 丢弃当前事务，恢复到上次提交
+/// 丢掉这次还没提交的写入，库回到上次 `commit` 的状态。
 pub async fn Txn::abort(self : Txn) -> Unit raise DbError {
   require_open(self.db)
   self.db.tree.pages.clear()
@@ -283,7 +288,7 @@ pub async fn Txn::abort(self : Txn) -> Unit raise DbError {
 }
 
 ///|
-/// 未提交的事务随关闭丢弃
+/// 关闭。事务还开着就丢掉它。之后再调用抛 `DbError::Closed`。
 pub async fn Db::close(self : Db) -> Unit raise DbError {
   if self.txn is Some(txn) {
     txn.abort()

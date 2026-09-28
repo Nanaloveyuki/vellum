@@ -1,5 +1,5 @@
 ///|
-/// 页大小固定 4096 字节
+/// 每页字节数，固定 4096。
 pub let page_size : Int = 4096
 
 ///|
@@ -9,7 +9,7 @@ let magic : Bytes = b"VELLUM\x01\x00"
 let format_version : UInt = 1U
 
 ///|
-/// 叶节点里 key 加 value 的上限。第一版不跨页
+/// 单个 value 的字节上限。超过这个长度的 `put` 会抛 `DbError::ValueTooLarge`。
 pub let max_value_len : Int = 4000
 
 ///|

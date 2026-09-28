@@ -1,22 +1,22 @@
 # vellum
 
-纯 MoonBit 嵌入式页存储。单文件、单写者、崩溃可恢复。
+MoonBit 进程里的单文件页存储。`commit` 把数据写进页文件；中途崩溃的话，下次 `open` 用旁边的 WAL 把已经提交的部分补回去。
 
-别的 MoonBit 程序要在进程退出后还留下数据，又不想链 SQLite 或外部数据库。调用面是 `open`、`begin`、`get`、`put`、`delete`、`commit`、`abort`、`close`。这些函数都是 `async`。
+键和值都是 `Bytes`。没有 SQL，也不开网络端口。
 
-文件 IO 走 `moonbitlang/async`。不写 C FFI，不依赖 orbit。
-
-## 安装
+## 依赖
 
 `moon.mod`：
 
 ```
 import {
-  "Nanaloveyuki/vellum",
+  "Nanaloveyuki/vellum@0.1.0",
 }
 ```
 
-## 最小示例
+磁盘读写只在 `native` 上。`wasm` 能跑内存里的页结构，不会帮你把文件存进浏览器。
+
+## 用法
 
 ```mbt nocheck
 async fn main {
@@ -28,23 +28,42 @@ async fn main {
 
   let again = @vellum.open("notes.db")
   let read = again.begin()
-  let _ = read.get(b"hello")
+  match read.get(b"hello") {
+    Some(value) => println(value.to_string())
+    None => println("missing")
+  }
   read.abort()
   again.close()
 }
 ```
 
-`moon run src/cmd/main` 会在当前目录写下 `vellum-example.db`，关闭后再打开，读回 `b"vellum"`。
+`open`、`begin`、`get`、`put`、`delete`、`commit`、`abort`、`close` 都是 `async`，失败抛 `DbError`。
 
-未 `commit` 的写入，`get` 在别的打开里看不见。`abort` 和未提交的 `close` 丢掉当前事务。同一时刻只能有一个 `Txn`。
+本仓库执行 `moon run src/cmd/main`，会在当前目录生成 `vellum-example.db`，关掉再打开，打印 `b"vellum"`。
 
-## 崩溃恢复
+## 事务
 
-页大小固定 4096 字节。`commit` 先把脏页和提交帧写进 `path.wal` 并同步，再刷进页文件，最后清空 WAL。
+一个 `Db` 同时只能有一个 `Txn`。上一个还没 `commit` 或 `abort` 就再 `begin`，得到 `DbError::TxnOpen`。
 
-下次 `open` 只重放校验完整、且属于已提交事务的帧。尾部半帧丢掉。页文件已经刷完之后，WAL 被清空，不再重放。
+没提交的写入，换一次 `open` 就看不到。`abort` 回到上次提交的内容。`close` 时事务还开着，这次写入直接丢掉。
 
-第一版不做：SQL、网络、多进程锁、MVCC、压缩、加密、跨页 value。超过单页上限返回 `DbError::ValueTooLarge`。wasm 后端只覆盖内存里的页和 B+ 树，不承诺浏览器持久化。
+`commit` 先把脏页和提交记录同步到 `路径.wal`，再写页文件，最后把 WAL 截成空文件。下次 `open` 只采纳校验通过、并且带提交记录的帧。写到一半的尾巴丢掉。页文件已经刷完时 WAL 是空的，不会再重放。
+
+## 边界
+
+页长 `page_size`，固定 4096 字节。一个 value 最长 `max_value_len`（4000）字节，不能拆到下一页。超了，或者 key 长到当前页放不下，都是 `DbError::ValueTooLarge`。
+
+比较顺序就是字节序。一个路径只给一个进程写。没有文件锁，两个进程一起写同一个路径会把文件写坏。
+
+## 错误
+
+| 错误 | 何时出现 |
+| --- | --- |
+| `Closed` | `close` 之后还用这个 `Db` 或它的 `Txn` |
+| `TxnOpen` | 前一个事务没结束就 `begin` |
+| `ValueTooLarge` | value 超过 4000 字节，或这一页放不下 |
+| `Corrupt` | 页文件或 WAL 的 magic、版本、校验和不对 |
+| `Io(String)` | 读写失败。字符串是底层错误 |
 
 ## 许可证
 

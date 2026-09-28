@@ -1,15 +1,15 @@
 ///|
-/// 调用方可以匹配的失败
+/// `open` 和事务操作失败时抛出这个错误，调用方按构造器分支。
 pub(all) suberror DbError {
-  /// 库已经关闭
+  /// `close` 之后还在使用这个库或事务。
   Closed
-  /// 已经有一个未结束的事务
+  /// `begin` 时上一个事务还没有 `commit` 或 `abort`。
   TxnOpen
-  /// value 超过单页上限
+  /// `value` 超过 `max_value_len`，或者 key 和 value 放不进一页。
   ValueTooLarge
-  /// 页文件或 WAL 的 magic、版本或校验和不对
+  /// 页文件或 WAL 的 magic、版本、校验和或页结构不对。
   Corrupt
-  /// 文件读写失败
+  /// 读或写文件失败。参数是底层错误文本。
   Io(String)
 } derive(Eq, Debug)
 
