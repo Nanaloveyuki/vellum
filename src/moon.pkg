@@ -1,0 +1,16 @@
+import {
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/core/debug",
+  "moonbitlang/core/encoding/utf8",
+}
+
+warnings = "-unused_package"
+
+options(
+  targets: {
+    "db.mbt": [ "native" ],
+    "db_test.mbt": [ "native" ],
+    "db_wbtest.mbt": [ "native" ],
+  },
+)
