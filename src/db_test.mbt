@@ -62,23 +62,33 @@ async fn expect_ended(txn : @vellum.Txn) -> Unit {
   try txn.get(b"kept") catch {
     @vellum.DbError::TxnClosed => ()
     err => fail("\{err}")
-  } noraise { _ => fail("ended get accepted") }
+  } noraise {
+    _ => fail("ended get accepted")
+  }
   try txn.put(b"stale", b"wrong") catch {
     @vellum.DbError::TxnClosed => ()
     err => fail("\{err}")
-  } noraise { _ => fail("ended put accepted") }
+  } noraise {
+    _ => fail("ended put accepted")
+  }
   try txn.delete(b"kept") catch {
     @vellum.DbError::TxnClosed => ()
     err => fail("\{err}")
-  } noraise { _ => fail("ended delete accepted") }
+  } noraise {
+    _ => fail("ended delete accepted")
+  }
   try txn.commit() catch {
     @vellum.DbError::TxnClosed => ()
     err => fail("\{err}")
-  } noraise { _ => fail("ended commit accepted") }
+  } noraise {
+    _ => fail("ended commit accepted")
+  }
   try txn.abort() catch {
     @vellum.DbError::TxnClosed => ()
     err => fail("\{err}")
-  } noraise { _ => fail("ended abort accepted") }
+  } noraise {
+    _ => fail("ended abort accepted")
+  }
 }
 
 ///|
