@@ -16,6 +16,14 @@ pub struct Txn {
   priv base_root : Int
   priv base_freelist : Int
   priv base_next : Int
+  priv mut state : TxnState
+}
+
+///|
+priv enum TxnState {
+  Active
+  Committing
+  Ended
 }
 
 ///|
@@ -159,6 +167,16 @@ fn require_open(db : Db) -> Unit raise DbError {
 }
 
 ///|
+fn require_txn(txn : Txn) -> Unit raise DbError {
+  require_open(txn.db)
+  match txn.state {
+    Active => ()
+    Committing => raise DbError::TxnBusy
+    Ended => raise DbError::TxnClosed
+  }
+}
+
+///|
 #warnings("-unused_async")
 /// 开始事务。已有未结束事务时抛 `DbError::TxnOpen`，库已关闭时抛 `DbError::Closed`。
 pub async fn Db::begin(self : Db) -> Txn raise DbError {
@@ -174,6 +192,7 @@ pub async fn Db::begin(self : Db) -> Txn raise DbError {
     base_root: self.tree.root,
     base_freelist: self.tree.freelist,
     base_next: self.tree.next_page,
+    state: Active,
   }
   self.txn = Some(txn)
   txn
@@ -183,7 +202,7 @@ pub async fn Db::begin(self : Db) -> Txn raise DbError {
 #warnings("-unused_async")
 /// 按字节序查找 `key`。没有这个键时返回 `None`。
 pub async fn Txn::get(self : Txn, key : Bytes) -> Bytes? raise DbError {
-  require_open(self.db)
+  require_txn(self)
   self.db.tree.get(key)
 }
 
@@ -195,7 +214,7 @@ pub async fn Txn::put(
   key : Bytes,
   value : Bytes,
 ) -> Unit raise DbError {
-  require_open(self.db)
+  require_txn(self)
   self.db.tree.put(key, value)
 }
 
@@ -203,7 +222,7 @@ pub async fn Txn::put(
 #warnings("-unused_async")
 /// 删除 `key`。键存在并已删除返回 `true`，否则返回 `false`。
 pub async fn Txn::delete(self : Txn, key : Bytes) -> Bool raise DbError {
-  require_open(self.db)
+  require_txn(self)
   self.db.tree.delete(key)
 }
 
@@ -243,7 +262,11 @@ async fn Txn::commit_until(
   self : Txn,
   pause_after_wal~ : Bool,
 ) -> Unit raise DbError {
-  require_open(self.db)
+  require_txn(self)
+  self.state = Committing
+  errdefer {
+    self.state = Active
+  }
   let next_txn = self.db.txn_id + 1
   self.db.tree.pages[0] = page_bytes(
     encode_header({
@@ -269,6 +292,7 @@ async fn Txn::commit_until(
     write_all_bytes(wal_path(self.db.path), wal.bytes)
     self.db.txn_id = next_txn
     self.db.txn = None
+    self.state = Ended
   }
 }
 
@@ -276,7 +300,7 @@ async fn Txn::commit_until(
 #warnings("-unused_async")
 /// 丢掉这次还没提交的写入，库回到上次 `commit` 的状态。
 pub async fn Txn::abort(self : Txn) -> Unit raise DbError {
-  require_open(self.db)
+  require_txn(self)
   self.db.tree.pages.clear()
   for id, page in self.base_pages {
     self.db.tree.pages[id] = page
@@ -285,11 +309,15 @@ pub async fn Txn::abort(self : Txn) -> Unit raise DbError {
   self.db.tree.freelist = self.base_freelist
   self.db.tree.next_page = self.base_next
   self.db.txn = None
+  self.state = Ended
 }
 
 ///|
 /// 关闭。事务还开着就丢掉它。之后再调用抛 `DbError::Closed`。
 pub async fn Db::close(self : Db) -> Unit raise DbError {
+  if self.txn is Some(txn) && txn.state is Committing {
+    raise DbError::TxnBusy
+  }
   if self.txn is Some(txn) {
     txn.abort()
   }

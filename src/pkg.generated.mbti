@@ -16,6 +16,8 @@ pub let page_size : Int
 pub(all) suberror DbError {
   Closed
   TxnOpen
+  TxnClosed
+  TxnBusy
   ValueTooLarge
   Corrupt
   Io(String)

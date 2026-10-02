@@ -5,6 +5,10 @@ pub(all) suberror DbError {
   Closed
   /// `begin` 时上一个事务还没有 `commit` 或 `abort`。
   TxnOpen
+  /// 事务已经提交或撤销，句柄不能再使用。
+  TxnClosed
+  /// 事务正在提交；不能同时读写、撤销或关闭。
+  TxnBusy
   /// `value` 超过 `max_value_len`，或者 key 和 value 放不进一页。
   ValueTooLarge
   /// 页文件或 WAL 的 magic、版本、校验和或页结构不对。

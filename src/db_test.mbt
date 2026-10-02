@@ -56,3 +56,55 @@ async test "uncommitted close drops the write" {
   read.abort()
   reopened.close()
 }
+
+///|
+async fn expect_ended(txn : @vellum.Txn) -> Unit {
+  try txn.get(b"kept") catch {
+    @vellum.DbError::TxnClosed => ()
+    err => fail("\{err}")
+  } noraise { _ => fail("ended get accepted") }
+  try txn.put(b"stale", b"wrong") catch {
+    @vellum.DbError::TxnClosed => ()
+    err => fail("\{err}")
+  } noraise { _ => fail("ended put accepted") }
+  try txn.delete(b"kept") catch {
+    @vellum.DbError::TxnClosed => ()
+    err => fail("\{err}")
+  } noraise { _ => fail("ended delete accepted") }
+  try txn.commit() catch {
+    @vellum.DbError::TxnClosed => ()
+    err => fail("\{err}")
+  } noraise { _ => fail("ended commit accepted") }
+  try txn.abort() catch {
+    @vellum.DbError::TxnClosed => ()
+    err => fail("\{err}")
+  } noraise { _ => fail("ended abort accepted") }
+}
+
+///|
+async test "ended handles cannot alter a later transaction" {
+  let path = fresh_path()
+  let db = @vellum.open(path)
+  let committed = db.begin()
+  committed.put(b"kept", b"yes")
+  committed.commit()
+  let aborted = db.begin()
+  aborted.put(b"discarded", b"no")
+  aborted.abort()
+  let current = db.begin()
+  current.put(b"new", b"yes")
+  expect_ended(committed)
+  expect_ended(aborted)
+  assert_eq(current.get(b"kept"), Some(b"yes"))
+  assert_eq(current.get(b"new"), Some(b"yes"))
+  assert_eq(current.get(b"stale"), None)
+  assert_eq(current.get(b"discarded"), None)
+  current.commit()
+  db.close()
+  let reopened = @vellum.open(path)
+  let read = reopened.begin()
+  assert_eq(read.get(b"kept"), Some(b"yes"))
+  assert_eq(read.get(b"new"), Some(b"yes"))
+  read.abort()
+  reopened.close()
+}
