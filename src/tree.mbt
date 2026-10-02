@@ -123,15 +123,18 @@ fn split_leaf(leaf : Leaf) -> (Leaf, Bytes, Leaf) raise DbError {
   for entry in leaf.entries {
     total = total + leaf_entry_bytes(entry)
   }
-  // 一枚 entry 最多占满整页；总负载不超过两页时总能在某个分界把两侧压进一页。
   let mut left_payload = 0
   let mut mid = 0
+  let mut best_balance = 0x7FFFFFFF
   for i in 0..<(count - 1) {
     left_payload = left_payload + leaf_entry_bytes(leaf.entries[i])
     let right_payload = total - left_payload
-    if 7 + left_payload <= page_size && 7 + right_payload <= page_size {
+    let balance = (left_payload - right_payload).abs()
+    if 7 + left_payload <= page_size &&
+      7 + right_payload <= page_size &&
+      balance < best_balance {
       mid = i + 1
-      break
+      best_balance = balance
     }
   }
   guard mid > 0 else { raise DbError::ValueTooLarge }
@@ -157,14 +160,18 @@ fn split_branch(branch : Branch) -> (Branch, Bytes, Branch) raise DbError {
   // mid 把 keys[mid] 交给父节点：左侧 mid 个键 + mid+1 个子节点，右侧 count-mid-1 个键 + count-mid 个子节点。
   let mut left_key_payload = 0
   let mut mid = -1
+  let mut best_balance = 0x7FFFFFFF
   for i in 0..<count {
     let left_size = 3 + (i + 1) * 4 + left_key_payload
     let right_size = 3 +
       (children - (i + 1)) * 4 +
       (key_payload - left_key_payload - (2 + branch.keys[i].length()))
-    if left_size <= page_size && right_size <= page_size {
+    let balance = (left_size - right_size).abs()
+    if left_size <= page_size &&
+      right_size <= page_size &&
+      balance < best_balance {
       mid = i
-      break
+      best_balance = balance
     }
     left_key_payload = left_key_payload + 2 + branch.keys[i].length()
   }
@@ -338,10 +345,19 @@ fn Tree::delete(self : Tree, key : Bytes) -> Bool raise DbError {
     self.begin_operation()
     errdefer self.rollback_operation()
     let removed = self.delete_at(self.root, key)
-    if self.load(self.root) is Branch(branch) && branch.keys.length() == 0 {
-      let only = branch.children[0]
-      self.release(self.root)
-      self.root = only
+    while self.root != 0 {
+      match self.load(self.root) {
+        Branch(branch) if branch.keys.is_empty() => {
+          let old_root = self.root
+          self.root = branch.children[0]
+          self.release(old_root)
+        }
+        Leaf(leaf) if leaf.entries.is_empty() => {
+          self.release(self.root)
+          self.root = 0
+        }
+        _ => break
+      }
     }
     self.commit_operation()
     removed
@@ -381,14 +397,11 @@ fn Tree::rebalance(
   branch : Branch,
   index : Int,
 ) -> Unit raise DbError {
-  let child = branch.children[index]
-  let undersized = match self.load(child) {
-    Leaf(leaf) => leaf.entries.length() == 0
-    Branch(inner) => inner.keys.length() == 0
-    Free => raise DbError::Corrupt
+  if branch.children.length() < 2 {
+    return
   }
-  if undersized {
-    self.merge_child(branch, index)
+  let left_index = if index == 0 { 0 } else { index - 1 }
+  if self.merge_child(branch, left_index) {
     self.store_branch(id, branch)
   }
 }
@@ -397,9 +410,8 @@ fn Tree::rebalance(
 fn Tree::merge_child(
   self : Tree,
   branch : Branch,
-  index : Int,
-) -> Unit raise DbError {
-  let left_index = if index == 0 { 0 } else { index - 1 }
+  left_index : Int,
+) -> Bool raise DbError {
   let right_index = left_index + 1
   let left_id = branch.children[left_index]
   let right_id = branch.children[right_index]
@@ -409,8 +421,8 @@ fn Tree::merge_child(
         entries: left.entries + right.entries,
         right: right.right,
       }
-      guard leaf_byte_size(merged) <= page_size else {
-        raise DbError::ValueTooLarge
+      if leaf_byte_size(merged) > page_size {
+        return false
       }
       self.store_leaf(left_id, merged)
     }
@@ -418,8 +430,8 @@ fn Tree::merge_child(
       left.keys.push(branch.keys[left_index])
       left.keys.append(right.keys)
       left.children.append(right.children)
-      guard branch_byte_size(left) <= page_size else {
-        raise DbError::ValueTooLarge
+      if branch_byte_size(left) > page_size {
+        return false
       }
       self.store_branch(left_id, left)
     }
@@ -428,6 +440,7 @@ fn Tree::merge_child(
   self.release(right_id)
   ignore(branch.keys.remove(left_index))
   ignore(branch.children.remove(right_index))
+  true
 }
 
 ///|
