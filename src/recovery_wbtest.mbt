@@ -104,3 +104,73 @@ async test "failed page checkpoint blocks rollback and recovers committed WAL" {
   read.abort()
   recovered.close()
 }
+
+///|
+async test "WAL write failure requires reopening and leaves old commit intact" {
+  let dir = @fs.tmpdir(prefix="vellum-wal-failure")
+  defer @fs.rmdir(dir, recursive=true)
+  let path = "\{dir}/db"
+  let db = open(path)
+  let first = db.begin()
+  first.put(b"kept", b"old")
+  first.commit()
+  @fs.remove(wal_path(path))
+  @fs.mkdir(wal_path(path))
+  let next = db.begin()
+  next.put(b"kept", b"new")
+  try next.commit() catch {
+    DbError::Io(_) => ()
+    err => fail("\{err}")
+  } noraise {
+    _ => fail("WAL directory accepted")
+  }
+  try next.put(b"ignored", b"wrong") catch {
+    DbError::RecoveryRequired => ()
+    err => fail("\{err}")
+  } noraise {
+    _ => fail("poisoned write accepted")
+  }
+  db.close()
+  @fs.rmdir(wal_path(path))
+  let reopened = open(path)
+  let read = reopened.begin()
+  assert_eq(read.get(b"kept"), Some(b"old"))
+  assert_eq(read.get(b"ignored"), None)
+  read.abort()
+  reopened.close()
+}
+
+///|
+async test "committing transaction refuses reads rollback and close" {
+  let dir = @fs.tmpdir(prefix="vellum-busy")
+  defer @fs.rmdir(dir, recursive=true)
+  let path = "\{dir}/db"
+  let db = open(path)
+  let txn = db.begin()
+  txn.put(b"kept", b"yes")
+  txn.commit_until(pause_after_wal=true)
+  try txn.get(b"kept") catch {
+    DbError::TxnBusy => ()
+    err => fail("\{err}")
+  } noraise {
+    _ => fail("committing read accepted")
+  }
+  try txn.abort() catch {
+    DbError::TxnBusy => ()
+    err => fail("\{err}")
+  } noraise {
+    _ => fail("committing abort accepted")
+  }
+  try db.close() catch {
+    DbError::TxnBusy => ()
+    err => fail("\{err}")
+  } noraise {
+    _ => fail("committing close accepted")
+  }
+  db.closed = true
+  let reopened = open(path)
+  let read = reopened.begin()
+  assert_eq(read.get(b"kept"), Some(b"yes"))
+  read.abort()
+  reopened.close()
+}

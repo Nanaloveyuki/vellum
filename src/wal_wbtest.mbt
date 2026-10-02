@@ -100,3 +100,37 @@ test "replay_wal reads the older Data and Commit wire without a header page" {
   ])
   assert_eq(replay_wal(wal)[1], kept)
 }
+
+///|
+test "every cut through a data or commit tail preserves only earlier commits" {
+  let first = wal_page(b'a')
+  let later = wal_page(b'b')
+  let prefix = encode_wal([
+    Data(txn_id=1, page_id=1, page=first),
+    Commit(txn_id=1),
+  ])
+  let tail = encode_wal([
+    Data(txn_id=2, page_id=1, page=later),
+    Commit(txn_id=2),
+  ])
+  for cut in [0, 1, 19, 20, 4096, 4115, 4116, 4117, 4135] {
+    let replayed = replay_wal(prefix + tail[:cut].to_owned())
+    assert_eq(replayed.get(1), Some(first))
+  }
+  assert_eq(replay_wal(prefix + tail).get(1), Some(later))
+}
+
+///|
+test "corrupt committed suffix is not silently replaced with an older value" {
+  let prefix = encode_wal([
+    Data(txn_id=1, page_id=1, page=wal_page(b'a')),
+    Commit(txn_id=1),
+  ])
+  let tail = encode_wal([
+    Data(txn_id=2, page_id=1, page=wal_page(b'b')),
+    Commit(txn_id=2),
+  ])
+  let corrupt = tail.to_fixedarray()
+  corrupt[16] = b'c'
+  wal_must_corrupt(prefix + Bytes::from_array(corrupt))
+}

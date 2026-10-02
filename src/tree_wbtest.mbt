@@ -41,9 +41,10 @@ test "put get overwrite and delete stay ordered" {
 ///|
 test "fixed sequence splits leaves and still finds every key" {
   let tree = Tree::new()
+  let value = Bytes::make(1024, b'v')
   for i in 0..<80 {
     let name = if i < 10 { "0\{i}" } else { "\{i}" }
-    tree.put(key_of(name), key_of("value-\{name}-\{name}")) catch {
+    tree.put(key_of(name), value) catch {
       err => fail("\{err}")
     }
   }
@@ -52,7 +53,7 @@ test "fixed sequence splits leaves and still finds every key" {
   assert_eq(ordered[0], key_of("00"))
   assert_eq(ordered[79], key_of("79"))
   let middle = tree.get(key_of("40")) catch { err => fail("\{err}") }
-  assert_eq(middle, Some(key_of("value-40-40")))
+  assert_eq(middle, Some(value))
   for i in 0..<80 {
     if i % 2 == 0 {
       let name = if i < 10 { "0\{i}" } else { "\{i}" }
@@ -63,7 +64,7 @@ test "fixed sequence splits leaves and still finds every key" {
   let left = tree.keys() catch { err => fail("\{err}") }
   inspect(left.length(), content="40")
   let odd = tree.get(key_of("41")) catch { err => fail("\{err}") }
-  assert_eq(odd, Some(key_of("value-41-41")))
+  assert_eq(odd, Some(value))
 }
 
 ///|
