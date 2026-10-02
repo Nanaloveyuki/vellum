@@ -12,7 +12,6 @@ pub struct Db {
 /// 当前这一次读写。`commit` 之后别的 `open` 才能看见；`abort` 则回到上次提交。
 pub struct Txn {
   priv db : Db
-  priv base_pages : Map[Int, Bytes]
   priv base_root : Int
   priv base_freelist : Int
   priv base_next : Int
@@ -182,13 +181,9 @@ fn require_txn(txn : Txn) -> Unit raise DbError {
 pub async fn Db::begin(self : Db) -> Txn raise DbError {
   require_open(self)
   guard self.txn is None else { raise DbError::TxnOpen }
-  let base_pages : Map[Int, Bytes] = Map([])
-  for id, page in self.tree.pages {
-    base_pages[id] = page
-  }
+  self.tree.reset_changes()
   let txn = Txn::{
     db: self,
-    base_pages,
     base_root: self.tree.root,
     base_freelist: self.tree.freelist,
     base_next: self.tree.next_page,
@@ -228,26 +223,7 @@ pub async fn Txn::delete(self : Txn, key : Bytes) -> Bool raise DbError {
 
 ///|
 fn dirty_pages(txn : Txn) -> Array[Int] {
-  let ids = []
-  let mut seen_max = txn.base_next
-  if txn.db.tree.next_page > seen_max {
-    seen_max = txn.db.tree.next_page
-  }
-  for id in 0..<seen_max {
-    let before = txn.base_pages.get(id)
-    let after = txn.db.tree.pages.get(id)
-    if before != after {
-      ids.push(id)
-    }
-  }
-  if txn.base_root != txn.db.tree.root ||
-    txn.base_freelist != txn.db.tree.freelist ||
-    txn.base_next != txn.db.tree.next_page {
-    if !ids.contains(0) {
-      ids.push(0)
-    }
-  }
-  ids
+  txn.db.tree.changed_pages()
 }
 
 ///|
@@ -268,13 +244,16 @@ async fn Txn::commit_until(
     self.state = Active
   }
   let next_txn = self.db.txn_id + 1
-  self.db.tree.pages[0] = page_bytes(
-    encode_header({
-      root: self.db.tree.root,
-      freelist: self.db.tree.freelist,
-      txn_id: next_txn,
-      page_count: self.db.tree.next_page,
-    }),
+  self.db.tree.set_page(
+    0,
+    page_bytes(
+      encode_header({
+        root: self.db.tree.root,
+        freelist: self.db.tree.freelist,
+        txn_id: next_txn,
+        page_count: self.db.tree.next_page,
+      }),
+    ),
   )
   let wal = Wal::new()
   for id in dirty_pages(self) {
@@ -292,6 +271,7 @@ async fn Txn::commit_until(
     write_all_bytes(wal_path(self.db.path), wal.bytes)
     self.db.txn_id = next_txn
     self.db.txn = None
+    self.db.tree.reset_changes()
     self.state = Ended
   }
 }
@@ -301,13 +281,11 @@ async fn Txn::commit_until(
 /// 丢掉这次还没提交的写入，库回到上次 `commit` 的状态。
 pub async fn Txn::abort(self : Txn) -> Unit raise DbError {
   require_txn(self)
-  self.db.tree.pages.clear()
-  for id, page in self.base_pages {
-    self.db.tree.pages[id] = page
-  }
-  self.db.tree.root = self.base_root
-  self.db.tree.freelist = self.base_freelist
-  self.db.tree.next_page = self.base_next
+  self.db.tree.rollback_changes(
+    self.base_root,
+    self.base_freelist,
+    self.base_next,
+  )
   self.db.txn = None
   self.state = Ended
 }
