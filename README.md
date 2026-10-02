@@ -51,7 +51,7 @@ async fn main {
 
 `commit` 或 `abort` 成功后，事务句柄失效；继续使用抛 `DbError::TxnClosed`。提交正在进行时，同一事务的读写、撤销和 `Db::close` 抛 `DbError::TxnBusy`，不能与提交并发执行。
 
-`commit` 先把脏页和提交记录同步到 `路径.wal`，再写页文件，最后把 WAL 截成空文件。下次 `open` 只采纳校验通过、并且带提交记录的帧。写到一半的尾巴丢掉。页文件已经刷完时 WAL 是空的，不会再重放。
+`commit` 先把脏页和提交记录同步到 `路径.wal`，再写页文件，最后把 WAL 截成空文件。下次 `open` 只采纳完整且已提交的事务。不完整的已知帧尾部丢弃；完整帧的 CRC、字段或 kind 损坏抛 `Corrupt`，不静默舍弃后续日志。
 
 ## 边界
 
@@ -68,7 +68,7 @@ async fn main {
 | `TxnClosed` | 继续使用已提交或已撤销的事务 |
 | `TxnBusy` | 提交过程中对同一事务操作或关闭库 |
 | `ValueTooLarge` | value 超过 4000 字节，或这一页放不下 |
-| `Corrupt` | 页文件或 WAL 的 magic、版本、校验和不对 |
+| `Corrupt` | 页文件头、页结构或完整 WAL 帧损坏；数据页本身没有 CRC |
 | `Io(String)` | 读写失败。字符串是底层错误 |
 
 ## 许可证

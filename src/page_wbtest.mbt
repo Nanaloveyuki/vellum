@@ -1,6 +1,6 @@
 ///|
 test "crc32 matches the iso-hdlc check value" {
-  inspect(crc32(b"123456789"), content="3421780262")
+  inspect(crc32(b"123456789"[:]), content="3421780262")
 }
 
 ///|

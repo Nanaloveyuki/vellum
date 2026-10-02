@@ -112,9 +112,7 @@ pub async fn open(path : String) -> Db raise DbError {
   apply_pages(tree, pages)
   let wal_bytes = read_all_bytes(wal_path(path))
   if wal_bytes.length() > 0 {
-    let wal = Wal::new()
-    wal.bytes = wal_bytes
-    let replayed = wal.replay()
+    let replayed = replay_wal(wal_bytes)
     if replayed.length() > 0 {
       apply_pages(tree, replayed)
       if replayed.get(0) is Some(header) {
@@ -125,8 +123,7 @@ pub async fn open(path : String) -> Db raise DbError {
       }
       write_all_bytes(path, file_image(tree, tree_txn(tree, meta.txn_id)))
     }
-    wal.truncate()
-    write_all_bytes(wal_path(path), wal.bytes)
+    write_all_bytes(wal_path(path), b"")
   }
   {
     path,
@@ -255,20 +252,19 @@ async fn Txn::commit_until(
       }),
     ),
   )
-  let wal = Wal::new()
+  let frames : Array[Frame] = []
   for id in dirty_pages(self) {
     let page = match self.db.tree.pages.get(id) {
       Some(page) => page
       None => raise DbError::Corrupt
     }
-    wal.append(Data(txn_id=next_txn, page_id=id, page~))
+    frames.push(Data(txn_id=next_txn, page_id=id, page~))
   }
-  wal.append(Commit(txn_id=next_txn))
-  write_all_bytes(wal_path(self.db.path), wal.bytes)
+  frames.push(Commit(txn_id=next_txn))
+  write_all_bytes(wal_path(self.db.path), encode_wal(frames))
   if !pause_after_wal {
     write_all_bytes(self.db.path, file_image(self.db.tree, next_txn))
-    wal.truncate()
-    write_all_bytes(wal_path(self.db.path), wal.bytes)
+    write_all_bytes(wal_path(self.db.path), b"")
     self.db.txn_id = next_txn
     self.db.txn = None
     self.db.tree.reset_changes()

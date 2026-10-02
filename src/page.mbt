@@ -27,8 +27,11 @@ fn encode_header(meta : Meta) -> FixedArray[Byte] {
   write_u64_int(page, 24, meta.freelist)
   write_u64_int(page, 32, meta.txn_id)
   write_u64_int(page, 40, meta.page_count)
-  let body = owned_bytes(page_bytes(page)[0:header_len])
-  write_u32(page, header_len, crc32(body))
+  write_u32(
+    page,
+    header_len,
+    crc32(page.unsafe_reinterpret_as_bytes()[:header_len]),
+  )
   page
 }
 
@@ -41,9 +44,7 @@ fn decode_header(page : Bytes) -> Meta raise DbError {
     raise DbError::Corrupt
   }
   let stored = read_u32(page, header_len)
-  guard crc32(owned_bytes(page[0:header_len])) == stored else {
-    raise DbError::Corrupt
-  }
+  guard crc32(page[:header_len]) == stored else { raise DbError::Corrupt }
   {
     root: read_u64_as_int(page, 16),
     freelist: read_u64_as_int(page, 24),

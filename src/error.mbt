@@ -11,7 +11,7 @@ pub(all) suberror DbError {
   TxnBusy
   /// `value` 超过 `max_value_len`，或者 key 和 value 放不进一页。
   ValueTooLarge
-  /// 页文件或 WAL 的 magic、版本、校验和或页结构不对。
+  /// 页文件头、节点结构或完整 WAL 帧损坏；不完整日志尾部除外。
   Corrupt
   /// 读或写文件失败。参数是底层错误文本。
   Io(String)

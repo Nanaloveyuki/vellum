@@ -1,15 +1,11 @@
 ///|
-/// CRC-32/ISO-HDLC。多项式 0xEDB88320，初值全 1，结果取反
-fn crc32(bytes : Bytes) -> UInt {
+/// CRC-32/ISO-HDLC over a borrowed view; no buffer copies or accumulator objects.
+fn crc32(bytes : BytesView) -> UInt {
   let mut crc = 0xFFFFFFFFU
-  for i in 0..<bytes.length() {
-    crc = crc ^ bytes[i].to_uint()
+  for byte in bytes {
+    crc = crc ^ byte.to_uint()
     for _ in 0..<8 {
-      if (crc & 1U) == 1U {
-        crc = (crc >> 1) ^ 0xEDB88320U
-      } else {
-        crc = crc >> 1
-      }
+      crc = if (crc & 1U) == 1U { (crc >> 1) ^ 0xEDB88320U } else { crc >> 1 }
     }
   }
   crc ^ 0xFFFFFFFFU
