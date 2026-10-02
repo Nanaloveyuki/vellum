@@ -27,6 +27,10 @@ jobs:
       - name: Check and test
         shell: bash
         run: |
-          moon check --target native
+          moon version
+          moon fmt --check
+          moon check --target native --deny-warn
           moon test --target native
-          moon run --target native src/cmd/main
+          moon test --target wasm-gc -p Nanaloveyuki/vellum
+          moon run --target native --release src/cmd/main
+          moon run --target native --release src/cmd/bench

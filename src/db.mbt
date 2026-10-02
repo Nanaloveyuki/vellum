@@ -117,7 +117,7 @@ pub async fn Db::begin(self : Db) -> Txn raise DbError {
 
 ///|
 #warnings("-unused_async")
-/// 按字节序查找 `key`。没有这个键时返回 `None`。
+/// 按版本 1 的 shortlex 顺序查找 `key`；只复制命中的 value。缺失返回 `None`。
 pub async fn Txn::get(self : Txn, key : Bytes) -> Bytes? raise DbError {
   require_txn(self)
   self.db.tree.get(key)
@@ -125,7 +125,7 @@ pub async fn Txn::get(self : Txn, key : Bytes) -> Bytes? raise DbError {
 
 ///|
 #warnings("-unused_async")
-/// 写入或覆盖。`value` 长于 `max_value_len`，或这一页放不下时，抛 `DbError::ValueTooLarge`。
+/// 写入或覆盖。容量超限抛 `ValueTooLarge`；失败保留事务中此前的全部修改。
 pub async fn Txn::put(
   self : Txn,
   key : Bytes,
@@ -144,7 +144,8 @@ pub async fn Txn::delete(self : Txn, key : Bytes) -> Bool raise DbError {
 }
 
 ///|
-/// 落盘。先把脏页和提交帧同步到 WAL，再写入页文件，最后清空 WAL。
+/// 同步 WAL 后定点写脏页并同步，再清空并同步 WAL。无修改时不做磁盘 I/O。
+/// I/O 失败后抛 `Io`，句柄要求关闭并重新打开，不能再撤销或提交。
 pub async fn Txn::commit(self : Txn) -> Unit raise DbError {
   self.commit_until(pause_after_wal=false)
 }

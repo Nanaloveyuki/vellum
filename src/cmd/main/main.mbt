@@ -2,12 +2,14 @@
 async fn main {
   let path = "vellum-example.db"
   let db = @vellum.open(path)
+  defer db.close()
   let txn = db.begin()
   txn.put(b"hello", b"vellum")
   txn.commit()
   db.close()
   let again = @vellum.open(path)
   let read = again.begin()
+  defer again.close()
   match read.get(b"hello") {
     Some(value) => println(value.to_string())
     None => println("missing")
