@@ -82,11 +82,17 @@ fn Tree::store_branch(
 
 ///|
 fn find_entry(entries : Array[Entry], key : Bytes) -> Int {
-  let mut index = 0
-  while index < entries.length() && compare_bytes(entries[index].key, key) < 0 {
-    index = index + 1
+  let mut low = 0
+  let mut high = entries.length()
+  while low < high {
+    let mid = low + (high - low) / 2
+    if compare_bytes(entries[mid].key, key) < 0 {
+      low = mid + 1
+    } else {
+      high = mid
+    }
   }
-  index
+  low
 }
 
 ///|
@@ -302,39 +308,43 @@ fn Tree::insert_branch(
 
 ///|
 fn find_child_index(branch : Branch, key : Bytes) -> Int {
-  let mut index = 0
-  while index < branch.keys.length() &&
-        compare_bytes(key, branch.keys[index]) >= 0 {
-    index = index + 1
+  let mut low = 0
+  let mut high = branch.keys.length()
+  while low < high {
+    let mid = low + (high - low) / 2
+    if compare_bytes(key, branch.keys[mid]) >= 0 {
+      low = mid + 1
+    } else {
+      high = mid
+    }
   }
-  index
+  low
 }
 
 ///|
 fn Tree::get(self : Tree, key : Bytes) -> Bytes? raise DbError {
-  if self.root == 0 {
-    None
-  } else {
-    self.get_at(self.root, key)
-  }
-}
-
-///|
-fn Tree::get_at(self : Tree, id : Int, key : Bytes) -> Bytes? raise DbError {
-  match self.load(id) {
-    Leaf(leaf) => {
-      let index = find_entry(leaf.entries, key)
-      if index < leaf.entries.length() &&
-        compare_bytes(leaf.entries[index].key, key) == 0 {
-        Some(leaf.entries[index].value)
-      } else {
-        None
-      }
+  let mut id = self.root
+  let mut remaining = self.next_page
+  while id != 0 {
+    guard id > 0 && id < self.next_page && remaining > 0 else {
+      raise DbError::Corrupt
     }
-    Branch(branch) =>
-      self.get_at(branch.children[find_child_index(branch, key)], key)
-    Free => raise DbError::Corrupt
+    remaining = remaining - 1
+    let page = match self.pages.get(id) {
+      Some(page) => page
+      None => raise DbError::Corrupt
+    }
+    guard page.length() == page_size else { raise DbError::Corrupt }
+    if page[0] == kind_leaf {
+      return lookup_leaf(page, key)
+    }
+    if page[0] == kind_branch {
+      id = lookup_child(page, key)
+    } else {
+      raise DbError::Corrupt
+    }
   }
+  None
 }
 
 ///|
@@ -451,16 +461,18 @@ fn Tree::keys(self : Tree) -> Array[Bytes] raise DbError {
   } else {
     let mut id = self.leftmost(self.root)
     let keys = []
+    let mut remaining = self.next_page
     while id != 0 {
-      match self.load(id) {
-        Leaf(leaf) => {
-          for entry in leaf.entries {
-            keys.push(entry.key)
-          }
-          id = leaf.right
-        }
-        _ => raise DbError::Corrupt
+      guard id > 0 && id < self.next_page && remaining > 0 else {
+        raise DbError::Corrupt
       }
+      remaining = remaining - 1
+      let page = match self.pages.get(id) {
+        Some(page) => page
+        None => raise DbError::Corrupt
+      }
+      append_leaf_keys(page, keys)
+      id = read_u32(page, 3).reinterpret_as_int()
     }
     keys
   }
@@ -468,9 +480,23 @@ fn Tree::keys(self : Tree) -> Array[Bytes] raise DbError {
 
 ///|
 fn Tree::leftmost(self : Tree, id : Int) -> Int raise DbError {
-  match self.load(id) {
-    Leaf(_) => id
-    Branch(branch) => self.leftmost(branch.children[0])
-    Free => raise DbError::Corrupt
+  let mut current = id
+  let mut remaining = self.next_page
+  while remaining > 0 {
+    guard current > 0 && current < self.next_page else {
+      raise DbError::Corrupt
+    }
+    remaining = remaining - 1
+    let page = match self.pages.get(current) {
+      Some(page) => page
+      None => raise DbError::Corrupt
+    }
+    guard page.length() == page_size else { raise DbError::Corrupt }
+    if page[0] == kind_leaf {
+      return current
+    }
+    guard page[0] == kind_branch else { raise DbError::Corrupt }
+    current = read_u32(page, 3).reinterpret_as_int()
   }
+  raise DbError::Corrupt
 }
