@@ -51,7 +51,11 @@ async fn main {
 
 `commit` 或 `abort` 成功后，事务句柄失效；继续使用抛 `DbError::TxnClosed`。提交正在进行时，同一事务的读写、撤销和 `Db::close` 抛 `DbError::TxnBusy`，不能与提交并发执行。
 
-`commit` 先把脏页和提交记录同步到 `路径.wal`，再写页文件，最后把 WAL 截成空文件。下次 `open` 只采纳完整且已提交的事务。不完整的已知帧尾部丢弃；完整帧的 CRC、字段或 kind 损坏抛 `Corrupt`，不静默舍弃后续日志。
+`commit` 先把脏页和提交记录写入 `路径.wal` 并同步，再按偏移写入主文件的脏页，最后同步主文件、清空并同步 WAL。不截断主文件，不重写未修改的页。没有实际修改的事务提交不做磁盘 I/O。
+
+下次 `open` 先把完整已提交 WAL 覆盖到对应页，再验证页文件和树结构。不完整的已知帧尾部丢弃；完整帧损坏抛 `Corrupt`，日志保留。日志不能补回未记录的缺失页，不能修复旧版全量截断导致的任意数据丢失。
+
+`commit` 的磁盘操作失败后，原调用抛 `Io`，句柄进入 `RecoveryRequired`；只能 `close` 后重新 `open`。不要 `abort` 或盲目重试提交：WAL 可能已经提交，重新打开才能确定结果。
 
 ## 边界
 
@@ -67,6 +71,7 @@ async fn main {
 | `TxnOpen` | 前一个事务没结束就 `begin` |
 | `TxnClosed` | 继续使用已提交或已撤销的事务 |
 | `TxnBusy` | 提交过程中对同一事务操作或关闭库 |
+| `RecoveryRequired` | 提交 I/O 失败后继续操作；需要关闭并重新打开 |
 | `ValueTooLarge` | value 超过 4000 字节，或这一页放不下 |
 | `Corrupt` | 页文件头、页结构或完整 WAL 帧损坏；数据页本身没有 CRC |
 | `Io(String)` | 读写失败。字符串是底层错误 |

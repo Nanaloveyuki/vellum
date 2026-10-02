@@ -9,6 +9,8 @@ pub(all) suberror DbError {
   TxnClosed
   /// 事务正在提交；不能同时读写、撤销或关闭。
   TxnBusy
+  /// 提交发生 I/O 错误；关闭此句柄并重新打开，让 WAL 决定最终结果。
+  RecoveryRequired
   /// `value` 超过 `max_value_len`，或者 key 和 value 放不进一页。
   ValueTooLarge
   /// 页文件头、节点结构或完整 WAL 帧损坏；不完整日志尾部除外。

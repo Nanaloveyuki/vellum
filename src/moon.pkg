@@ -12,5 +12,7 @@ options(
     "db.mbt": [ "native" ],
     "db_test.mbt": [ "native" ],
     "db_wbtest.mbt": [ "native" ],
+    "storage.mbt": [ "native" ],
+    "recovery_wbtest.mbt": [ "native" ],
   },
 )

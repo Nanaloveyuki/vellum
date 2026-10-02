@@ -18,6 +18,7 @@ pub(all) suberror DbError {
   TxnOpen
   TxnClosed
   TxnBusy
+  RecoveryRequired
   ValueTooLarge
   Corrupt
   Io(String)

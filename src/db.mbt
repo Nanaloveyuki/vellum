@@ -6,6 +6,7 @@ pub struct Db {
   priv mut txn_id : Int
   priv mut txn : Txn?
   priv mut closed : Bool
+  priv mut recovery_required : Bool
 }
 
 ///|
@@ -23,6 +24,7 @@ priv enum TxnState {
   Active
   Committing
   Ended
+  Failed
 }
 
 ///|
@@ -42,124 +44,46 @@ async fn read_all_bytes(path : String) -> Bytes raise DbError {
 }
 
 ///|
-async fn write_all_bytes(path : String, bytes : Bytes) -> Unit raise DbError {
-  @fs.write_file(path, bytes, create_mode=@fs.CreateOrTruncate, sync=@fs.Full) catch {
-    err => raise io_error(err)
-  }
-}
-
-///|
 fn wal_path(path : String) -> String {
   "\{path}.wal"
 }
 
 ///|
-async fn read_page_file(path : String) -> (Meta, Map[Int, Bytes]) raise DbError {
-  let bytes = read_all_bytes(path)
-  if bytes.length() == 0 {
-    let meta = { root: 0, freelist: 0, txn_id: 0, page_count: 1, }
-    (meta, Map([]))
-  } else {
-    guard bytes.length() % page_size == 0 else { raise DbError::Corrupt }
-    let meta = decode_header(owned_bytes(bytes[0:page_size]))
-    guard meta.page_count * page_size == bytes.length() else {
-      raise DbError::Corrupt
-    }
-    let pages : Map[Int, Bytes] = Map([])
-    for id in 1..<meta.page_count {
-      pages[id] = owned_bytes(bytes[id * page_size:(id + 1) * page_size])
-    }
-    (meta, pages)
-  }
-}
-
-///|
-fn apply_pages(tree : Tree, pages : Map[Int, Bytes]) -> Unit {
-  for id, page in pages {
-    if id != 0 {
-      tree.pages[id] = page
-    }
-  }
-}
-
-///|
-fn file_image(tree : Tree, txn_id : Int) -> Bytes {
-  let meta = {
-    root: tree.root,
-    freelist: tree.freelist,
-    txn_id,
-    page_count: tree.next_page,
-  }
-  let mut image = page_bytes(encode_header(meta))
-  for id in 1..<tree.next_page {
-    let page = match tree.pages.get(id) {
-      Some(page) => page
-      None => page_bytes(blank_page())
-    }
-    image = image + page
-  }
-  image
-}
-
-///|
-/// 打开 `path`。文件不存在就创建。若有 `path.wal`，只重放校验通过且已提交的帧，然后把 WAL 清空。
+/// 打开并载入 `path`；新库在首次有修改的提交时创建文件。
+/// 完整已提交 WAL 覆盖对应页后再验证；缺失且未被日志覆盖的页抛 `Corrupt`。
 pub async fn open(path : String) -> Db raise DbError {
-  let (meta, pages) = read_page_file(path)
+  let wal_bytes = read_all_bytes(wal_path(path))
+  let replayed = replay_wal(wal_bytes)
+  let bytes = read_all_bytes(path)
+  let (meta, pages) = read_image(bytes, replayed)
   let tree = Tree::new()
   tree.root = meta.root
   tree.freelist = meta.freelist
   tree.next_page = meta.page_count
-  apply_pages(tree, pages)
-  let wal_bytes = read_all_bytes(wal_path(path))
-  if wal_bytes.length() > 0 {
-    let replayed = replay_wal(wal_bytes)
-    if replayed.length() > 0 {
-      apply_pages(tree, replayed)
-      if replayed.get(0) is Some(header) {
-        let replay_meta = decode_header(header)
-        tree.root = replay_meta.root
-        tree.freelist = replay_meta.freelist
-        tree.next_page = replay_meta.page_count
-      }
-      write_all_bytes(path, file_image(tree, tree_txn(tree, meta.txn_id)))
-    }
-    write_all_bytes(wal_path(path), b"")
+  for id, page in pages {
+    tree.pages[id] = page
+  }
+  tree.validate()
+  if !replayed.is_empty() {
+    write_page_batch(path, replayed)
+  }
+  if !wal_bytes.is_empty() {
+    write_synced_bytes(wal_path(path), b"")
   }
   {
     path,
     tree,
-    txn_id: meta_txn_after_replay(meta, tree),
+    txn_id: meta.txn_id,
     txn: None,
     closed: false,
-  }
-}
-
-///|
-fn tree_txn(tree : Tree, fallback : Int) -> Int {
-  match tree.pages.get(0) {
-    Some(header) =>
-      try decode_header(header) catch {
-        _ => fallback
-      } noraise {
-        meta => meta.txn_id
-      }
-    None => fallback
-  }
-}
-
-///|
-fn meta_txn_after_replay(meta : Meta, tree : Tree) -> Int {
-  let from_header = tree_txn(tree, meta.txn_id)
-  if from_header > meta.txn_id {
-    from_header
-  } else {
-    meta.txn_id
+    recovery_required: false,
   }
 }
 
 ///|
 fn require_open(db : Db) -> Unit raise DbError {
   guard !db.closed else { raise DbError::Closed }
+  guard !db.recovery_required else { raise DbError::RecoveryRequired }
 }
 
 ///|
@@ -169,6 +93,7 @@ fn require_txn(txn : Txn) -> Unit raise DbError {
     Active => ()
     Committing => raise DbError::TxnBusy
     Ended => raise DbError::TxnClosed
+    Failed => raise DbError::RecoveryRequired
   }
 }
 
@@ -219,11 +144,6 @@ pub async fn Txn::delete(self : Txn, key : Bytes) -> Bool raise DbError {
 }
 
 ///|
-fn dirty_pages(txn : Txn) -> Array[Int] {
-  txn.db.tree.changed_pages()
-}
-
-///|
 /// 落盘。先把脏页和提交帧同步到 WAL，再写入页文件，最后清空 WAL。
 pub async fn Txn::commit(self : Txn) -> Unit raise DbError {
   self.commit_until(pause_after_wal=false)
@@ -236,40 +156,58 @@ async fn Txn::commit_until(
   pause_after_wal~ : Bool,
 ) -> Unit raise DbError {
   require_txn(self)
-  self.state = Committing
-  errdefer {
-    self.state = Active
+  let tree = self.db.tree
+  let dirty = tree.changed_pages()
+  if dirty.is_empty() &&
+    tree.root == self.base_root &&
+    tree.freelist == self.base_freelist &&
+    tree.next_page == self.base_next {
+    tree.reset_changes()
+    self.db.txn = None
+    self.state = Ended
+    return
   }
+  guard self.db.txn_id < 0x7FFFFFFF else { raise DbError::Corrupt }
   let next_txn = self.db.txn_id + 1
-  self.db.tree.set_page(
-    0,
-    page_bytes(
-      encode_header({
-        root: self.db.tree.root,
-        freelist: self.db.tree.freelist,
-        txn_id: next_txn,
-        page_count: self.db.tree.next_page,
-      }),
-    ),
+  let header = page_bytes(
+    encode_header({
+      root: tree.root,
+      freelist: tree.freelist,
+      txn_id: next_txn,
+      page_count: tree.next_page,
+    }),
   )
-  let frames : Array[Frame] = []
-  for id in dirty_pages(self) {
-    let page = match self.db.tree.pages.get(id) {
-      Some(page) => page
-      None => raise DbError::Corrupt
+  let pages : Map[Int, Bytes] = Map([])
+  pages[0] = header
+  let frames : Array[Frame] = [Data(txn_id=next_txn, page_id=0, page=header)]
+  for id in dirty {
+    if id != 0 {
+      let page = match tree.pages.get(id) {
+        Some(page) => page
+        None => raise DbError::Corrupt
+      }
+      pages[id] = page
+      frames.push(Data(txn_id=next_txn, page_id=id, page~))
     }
-    frames.push(Data(txn_id=next_txn, page_id=id, page~))
   }
   frames.push(Commit(txn_id=next_txn))
-  write_all_bytes(wal_path(self.db.path), encode_wal(frames))
-  if !pause_after_wal {
-    write_all_bytes(self.db.path, file_image(self.db.tree, next_txn))
-    write_all_bytes(wal_path(self.db.path), b"")
-    self.db.txn_id = next_txn
-    self.db.txn = None
-    self.db.tree.reset_changes()
-    self.state = Ended
+  let wal_bytes = encode_wal(frames)
+  self.state = Committing
+  errdefer {
+    self.state = Failed
+    self.db.recovery_required = true
   }
+  write_synced_bytes(wal_path(self.db.path), wal_bytes)
+  if pause_after_wal {
+    return
+  }
+  write_page_batch(self.db.path, pages)
+  write_synced_bytes(wal_path(self.db.path), b"")
+  tree.pages[0] = header
+  self.db.txn_id = next_txn
+  tree.reset_changes()
+  self.db.txn = None
+  self.state = Ended
 }
 
 ///|
@@ -293,7 +231,12 @@ pub async fn Db::close(self : Db) -> Unit raise DbError {
     raise DbError::TxnBusy
   }
   if self.txn is Some(txn) {
-    txn.abort()
+    if self.recovery_required {
+      txn.state = Ended
+      self.txn = None
+    } else {
+      txn.abort()
+    }
   }
   self.closed = true
 }

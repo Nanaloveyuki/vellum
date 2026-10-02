@@ -68,16 +68,21 @@ fn decode_leaf(page : Bytes) -> Leaf raise DbError {
   }
   let count = read_u16(page, 1)
   let right = read_u32(page, 3).reinterpret_as_int()
-  let entries = []
+  guard right >= 0 else { raise DbError::Corrupt }
+  let entries : Array[Entry] = []
   let mut cursor = 7
   for _ in 0..<count {
     guard cursor + 4 <= page_size else { raise DbError::Corrupt }
     let key_len = read_u16(page, cursor)
     let value_len = read_u16(page, cursor + 2)
+    guard value_len <= max_value_len else { raise DbError::Corrupt }
     guard cursor + 4 + key_len + value_len <= page_size else {
       raise DbError::Corrupt
     }
     let key = owned_bytes(page[cursor + 4:cursor + 4 + key_len])
+    if entries.last() is Some(previous) && compare_bytes(previous.key, key) >= 0 {
+      raise DbError::Corrupt
+    }
     let value = owned_bytes(
       page[cursor + 4 + key_len:cursor + 4 + key_len + value_len],
     )
@@ -122,7 +127,9 @@ fn decode_branch(page : Bytes) -> Branch raise DbError {
   let mut cursor = 3
   for _ in 0..<(key_count + 1) {
     guard cursor + 4 <= page_size else { raise DbError::Corrupt }
-    children.push(read_u32(page, cursor).reinterpret_as_int())
+    let child = read_u32(page, cursor).reinterpret_as_int()
+    guard child > 0 else { raise DbError::Corrupt }
+    children.push(child)
     cursor = cursor + 4
   }
   let keys = []
@@ -130,7 +137,11 @@ fn decode_branch(page : Bytes) -> Branch raise DbError {
     guard cursor + 2 <= page_size else { raise DbError::Corrupt }
     let key_len = read_u16(page, cursor)
     guard cursor + 2 + key_len <= page_size else { raise DbError::Corrupt }
-    keys.push(owned_bytes(page[cursor + 2:cursor + 2 + key_len]))
+    let key = owned_bytes(page[cursor + 2:cursor + 2 + key_len])
+    if keys.last() is Some(previous) && compare_bytes(previous, key) >= 0 {
+      raise DbError::Corrupt
+    }
+    keys.push(key)
     cursor = cursor + 2 + key_len
   }
   { keys, children, }
@@ -149,7 +160,9 @@ fn decode_free(page : Bytes) -> Int raise DbError {
   guard page.length() == page_size && page[0] == kind_free else {
     raise DbError::Corrupt
   }
-  read_u32(page, 1).reinterpret_as_int()
+  let next = read_u32(page, 1).reinterpret_as_int()
+  guard next >= 0 else { raise DbError::Corrupt }
+  next
 }
 
 ///|
