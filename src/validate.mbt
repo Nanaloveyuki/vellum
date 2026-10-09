@@ -19,7 +19,11 @@ fn Tree::validate(self : Tree) -> Unit raise DbError {
       raise DbError::Corrupt
     }
     visited[id] = true
-    match self.load(id) {
+    let page = match self.pages.get(id) {
+      Some(page) => page
+      None => raise DbError::Corrupt
+    }
+    match decode_node(page) {
       Leaf(leaf) => {
         for entry in leaf.entries {
           if lower is Some(key) && compare_bytes(entry.key, key) < 0 {

@@ -1,6 +1,12 @@
 ///|
 priv struct Tree {
   pages : Map[Int, Bytes]
+  lookup_cache : Map[Int, PageIndex]
+  lookup_slots : FixedArray[Int]
+  mut lookup_next : Int
+  node_cache : Map[Int, CachedNode]
+  node_slots : FixedArray[Int]
+  mut node_next : Int
   mut root : Int
   mut freelist : Int
   mut next_page : Int
@@ -22,6 +28,12 @@ priv struct Tree {
 fn Tree::new() -> Tree {
   {
     pages: Map([]),
+    lookup_cache: Map([]),
+    lookup_slots: FixedArray::make(256, 0),
+    lookup_next: 0,
+    node_cache: Map([]),
+    node_slots: FixedArray::make(64, 0),
+    node_next: 0,
     root: 0,
     freelist: 0,
     next_page: 1,
@@ -61,7 +73,15 @@ fn Tree::release(self : Tree, id : Int) -> Unit {
 ///|
 fn Tree::load(self : Tree, id : Int) -> Node raise DbError {
   match self.pages.get(id) {
-    Some(page) => decode_node(page)
+    Some(page) => {
+      if self.node_cache.get(id) is Some(cached) &&
+        physical_equal(cached.page, page) {
+        return copy_node(cached.node)
+      }
+      let node = decode_node(page)
+      self.cache_node(id, page, node)
+      node
+    }
     None => raise DbError::Corrupt
   }
 }
@@ -69,6 +89,7 @@ fn Tree::load(self : Tree, id : Int) -> Node raise DbError {
 ///|
 fn Tree::store_leaf(self : Tree, id : Int, leaf : Leaf) -> Unit raise DbError {
   self.set_page(id, page_bytes(encode_leaf(leaf)))
+  self.cache_node(id, self.pages[id], Leaf(leaf))
 }
 
 ///|
@@ -78,6 +99,7 @@ fn Tree::store_branch(
   branch : Branch,
 ) -> Unit raise DbError {
   self.set_page(id, page_bytes(encode_branch(branch)))
+  self.cache_node(id, self.pages[id], Branch(branch))
 }
 
 ///|
@@ -336,10 +358,10 @@ fn Tree::get(self : Tree, key : Bytes) -> Bytes? raise DbError {
     }
     guard page.length() == page_size else { raise DbError::Corrupt }
     if page[0] == kind_leaf {
-      return lookup_leaf(page, key)
+      return lookup_leaf(self.page_index(id, page), key)
     }
     if page[0] == kind_branch {
-      id = lookup_child(page, key)
+      id = lookup_child(self.page_index(id, page), key)
     } else {
       raise DbError::Corrupt
     }
