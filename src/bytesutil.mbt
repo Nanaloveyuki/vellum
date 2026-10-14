@@ -53,3 +53,15 @@ fn owned_bytes(view : BytesView) -> Bytes {
 fn fixed_to_bytes(buf : FixedArray[Byte]) -> Bytes {
   Bytes::from_array(buf)
 }
+
+///|
+fn compare_bytes_view(left : BytesView, right : BytesView) -> Int {
+  let shared = left.length().min(right.length())
+  for i in 0..<shared {
+    let difference = left[i].to_int() - right[i].to_int()
+    if difference != 0 {
+      return difference
+    }
+  }
+  left.length() - right.length()
+}

@@ -1,15 +1,15 @@
 ///|
 fn model_order(left : Bytes, right : Bytes) -> Int {
-  if left.length() != right.length() {
-    return left.length() - right.length()
-  }
-  for i in 0..<left.length() {
-    let difference = left[i].to_int() - right[i].to_int()
+  for i, byte in left {
+    if i >= right.length() {
+      return 1
+    }
+    let difference = byte.to_int() - right[i].to_int()
     if difference != 0 {
       return difference
     }
   }
-  0
+  left.length() - right.length()
 }
 
 ///|

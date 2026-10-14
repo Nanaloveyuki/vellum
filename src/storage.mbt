@@ -127,6 +127,12 @@ fn read_image(
       return ({ root: 0, freelist: 0, txn_id: 0, page_count: 1, }, Map([]))
     None => raise DbError::Corrupt
   }
+  let version = header_version(header)
+  if version == 1U {
+    let _ = legacy_read_image(bytes, replayed)
+    raise DbError::UnsupportedFormat
+  }
+  guard version == format_version else { raise DbError::Corrupt }
   let meta = decode_header(header)
   guard meta.page_count >= 1 &&
     meta.page_count <= 0x7FFFFFFF / page_size &&

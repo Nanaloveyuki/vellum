@@ -13,6 +13,12 @@ pub(all) suberror DbError {
   RecoveryRequired
   /// `value` 超过 `max_value_len`，或者 key 和 value 放不进一页。
   ValueTooLarge
+  /// 页文件是有效但普通打开不接受的旧格式。
+  UnsupportedFormat
+  /// 范围下界大于排除上界。
+  InvalidRange
+  /// 当前事务接受了游标创建后的写尝试。
+  CursorInvalidated
   /// 页文件头、节点结构或完整 WAL 帧损坏；不完整日志尾部除外。
   Corrupt
   /// 读或写文件失败。参数是底层错误文本。

@@ -34,7 +34,7 @@ priv enum Node {
 
 ///|
 fn compare_bytes(left : Bytes, right : Bytes) -> Int {
-  left.compare(right)
+  compare_bytes_view(left[:], right[:])
 }
 
 ///|

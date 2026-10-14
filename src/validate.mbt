@@ -81,4 +81,8 @@ fn Tree::validate(self : Tree) -> Unit raise DbError {
     }
     id = decode_free(page)
   }
+
+  for i in 1..<self.next_page {
+    guard visited.contains(i) else { raise DbError::Corrupt }
+  }
 }

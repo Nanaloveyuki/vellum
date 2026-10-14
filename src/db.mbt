@@ -17,6 +17,7 @@ pub struct Txn {
   priv base_freelist : Int
   priv base_next : Int
   priv mut state : TxnState
+  priv mut cursor_validity : CursorValidity?
 }
 
 ///|
@@ -110,6 +111,7 @@ pub async fn Db::begin(self : Db) -> Txn raise DbError {
     base_freelist: self.tree.freelist,
     base_next: self.tree.next_page,
     state: Active,
+    cursor_validity: None,
   }
   self.txn = Some(txn)
   txn
@@ -117,7 +119,7 @@ pub async fn Db::begin(self : Db) -> Txn raise DbError {
 
 ///|
 #warnings("-unused_async")
-/// 按版本 1 的 shortlex 顺序查找 `key`；只复制命中的 value。缺失返回 `None`。
+/// 按版本 2 的字节字典序查找 `key`；只复制命中的 value。缺失返回 `None`。
 pub async fn Txn::get(self : Txn, key : Bytes) -> Bytes? raise DbError {
   require_txn(self)
   self.db.tree.get(key)
@@ -132,6 +134,7 @@ pub async fn Txn::put(
   value : Bytes,
 ) -> Unit raise DbError {
   require_txn(self)
+  self.invalidate_cursors()
   self.db.tree.put(key, value)
 }
 
@@ -140,6 +143,7 @@ pub async fn Txn::put(
 /// 删除 `key`。键存在并已删除返回 `true`，否则返回 `false`。
 pub async fn Txn::delete(self : Txn, key : Bytes) -> Bool raise DbError {
   require_txn(self)
+  self.invalidate_cursors()
   self.db.tree.delete(key)
 }
 

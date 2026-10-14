@@ -1,8 +1,10 @@
 import {
   "moonbitlang/async",
   "moonbitlang/async/fs",
+  "moonbitlang/async/os_error",
   "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/random",
 }
 
 warnings = "-unused_package"
@@ -16,5 +18,11 @@ options(
     "recovery_wbtest.mbt": [ "native" ],
     "scheduling_wbtest.mbt": [ "native" ],
     "storage_wbtest.mbt": [ "native" ],
+    "legacy_wbtest.mbt": [ "native" ],
+    "cursor.mbt": [ "native" ],
+    "cursor_test.mbt": [ "native" ],
+    "cursor_wbtest.mbt": [ "native" ],
+    "migration.mbt": [ "native" ],
+    "migration_wbtest.mbt": [ "native" ],
   },
 )

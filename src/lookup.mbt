@@ -57,7 +57,7 @@ fn index_page(page : Bytes) -> PageIndex raise DbError {
       raise DbError::Corrupt
     }
     let key = page[cursor + header:cursor + header + key_len]
-    if previous is Some(last) && last.compare(key) >= 0 {
+    if previous is Some(last) && compare_bytes_view(last, key) >= 0 {
       raise DbError::Corrupt
     }
     previous = Some(key)
@@ -68,10 +68,10 @@ fn index_page(page : Bytes) -> PageIndex raise DbError {
 }
 
 ///|
-// Shortlex lower bound on already validated positions; branch equality routes right.
+// Lexicographic lower bound on validated positions; branch equality routes right.
 fn index_position(
   index : PageIndex,
-  key : Bytes,
+  key : BytesView,
   branch~ : Bool,
 ) -> Int raise DbError {
   let mut low = 0
@@ -81,7 +81,7 @@ fn index_position(
     let offset = index.offsets[mid]
     let length = read_u16(index.page, offset)
     let start = offset + (if branch { 2 } else { 4 })
-    let order = index.page[start:start + length].compare(key[:])
+    let order = compare_bytes_view(index.page[start:start + length], key)
     if order < 0 || (branch && order == 0) {
       low = mid + 1
     } else {
@@ -93,7 +93,7 @@ fn index_position(
 
 ///|
 fn lookup_leaf(index : PageIndex, key : Bytes) -> Bytes? raise DbError {
-  let position = index_position(index, key, branch=false)
+  let position = index_position(index, key[:], branch=false)
   guard position < index.offsets.length() else { return None }
   let offset = index.offsets[position]
   let key_len = read_u16(index.page, offset)
@@ -105,7 +105,7 @@ fn lookup_leaf(index : PageIndex, key : Bytes) -> Bytes? raise DbError {
 
 ///|
 fn lookup_child(index : PageIndex, key : Bytes) -> Int raise DbError {
-  let child = index_position(index, key, branch=true)
+  let child = index_position(index, key[:], branch=true)
   read_u32(index.page, 3 + child * 4).reinterpret_as_int()
 }
 
@@ -123,7 +123,7 @@ fn append_leaf_keys(page : Bytes, keys : Array[Bytes]) -> Unit raise DbError {
       raise DbError::Corrupt
     }
     let key = page[cursor + 4:cursor + 4 + key_len].to_owned()
-    if keys.last() is Some(previous) && previous.compare(key) >= 0 {
+    if keys.last() is Some(previous) && compare_bytes(previous, key) >= 0 {
       raise DbError::Corrupt
     }
     keys.push(key)

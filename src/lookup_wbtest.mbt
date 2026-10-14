@@ -1,7 +1,10 @@
 ///|
-test "borrowed lookup preserves shortlex boundaries and exact values" {
+test "borrowed lookup preserves lexical binary boundaries and exact values" {
   let tree = Tree::new()
-  let keys = [b"", b"a", b"z", b"\xff", b"\x00\x00", b"aa", b"aaa"]
+  let keys = [
+    b"", b"\x00", b"\x00\x00", b"a", b"a\x00", b"aa", b"aaa", b"z", b"\x80", b"\xff",
+    b"\xff\x00",
+  ]
   for i in 0..<keys.length() {
     tree.put(keys[i], Bytes::make(1024, i.to_byte()))
   }
@@ -69,7 +72,7 @@ test "a warmed page index cannot hide a malformed replacement" {
   let original = tree.pages[tree.root]
   let malformed = page_bytes(
     encode_leaf({
-      entries: [{ key: b"z", value: b"wrong", }, { key: b"a", value: b"bad", }],
+      entries: [{ key: b"z", value: b"wrong", }, { key: b"aa", value: b"bad", }],
       right: 0,
     }),
   )

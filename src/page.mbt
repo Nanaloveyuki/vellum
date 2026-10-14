@@ -37,14 +37,7 @@ fn encode_header(meta : Meta) -> FixedArray[Byte] {
 
 ///|
 fn decode_header(page : Bytes) -> Meta raise DbError {
-  guard page.length() == page_size else { raise DbError::Corrupt }
-  guard page[0:8] == magic[:] else { raise DbError::Corrupt }
-  guard read_u32(page, 8) == format_version else { raise DbError::Corrupt }
-  guard read_u32(page, 12) == page_size.reinterpret_as_uint() else {
-    raise DbError::Corrupt
-  }
-  let stored = read_u32(page, header_len)
-  guard crc32(page[:header_len]) == stored else { raise DbError::Corrupt }
+  guard header_version(page) == format_version else { raise DbError::Corrupt }
   {
     root: read_u64_as_int(page, 16),
     freelist: read_u64_as_int(page, 24),
