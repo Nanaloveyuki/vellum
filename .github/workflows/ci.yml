@@ -17,7 +17,7 @@ jobs:
       - name: Setup MoonBit
         shell: bash
         run: |
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- '0.10.14+7d59c7ec9'
           echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
 
       - name: Update registry
@@ -27,7 +27,8 @@ jobs:
       - name: Check and test
         shell: bash
         run: |
-          moon version
+          moon version --all
+          moonc -v
           moon fmt --check
           moon check --target native --deny-warn
           moon test --target native

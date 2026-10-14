@@ -175,6 +175,21 @@ moon run src/cmd/scan_bench --target native --release
 
 ## 开发
 
+本地开发与 CI 固定使用 2026-09-20 工具链归档 `0.10.14+7d59c7ec9`（MoonBit 语言 0.10.14），同时安装对应的编译器、CLI 和 core。全新安装实测 `moon 0.1.20260920 (914d7da 2026-09-20)`、`moonc v0.10.14+7d59c7ec9 (2026-09-18)`；CLI 与语言版本号分别记录。
+
+在 Bash 中安装与 CI 相同的版本：
+
+```bash
+set -eo pipefail
+curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- '0.10.14+7d59c7ec9'
+export PATH="${MOON_HOME:-$HOME/.moon}/bin:$PATH"
+moon version --all
+moonc -v
+moon update
+```
+
+官方历史归档当前采用 60 天保留策略；本版本的 [二进制](https://cli.moonbitlang.com/binaries/0.10.14%2B7d59c7ec9/moonbit-linux-x86_64.tar.gz) 与 [core](https://cli.moonbitlang.com/cores/core-0.10.14%2B7d59c7ec9.tar.gz) HTTP 响应声明于 2026-11-20 到期。归档不可用时安装会失败，不回退到 latest。
+
 ```sh
 moon fmt --check
 moon check --target native --deny-warn
