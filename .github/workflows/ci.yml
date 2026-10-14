@@ -31,6 +31,8 @@ jobs:
           moon fmt --check
           moon check --target native --deny-warn
           moon test --target native
-          moon test --target wasm-gc -p Nanaloveyuki/vellum
+          moon test src --target wasm-gc
           moon run --target native --release src/cmd/main
           moon run --target native --release src/cmd/bench
+          moon run --target native --release src/cmd/metadata
+          moon run --target native --release src/cmd/scan_bench
