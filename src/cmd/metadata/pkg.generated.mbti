@@ -1,0 +1,18 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "Nanaloveyuki/vellum/cmd/metadata"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+type MetadataError derive(Eq, @debug.Debug)
+
+// Types and methods
+type Record derive(Eq, @debug.Debug)
+
+// Type aliases
+
+// Traits
