@@ -1,27 +1,27 @@
 ///|
 priv struct Tree {
-  pages : Map[Int, Bytes]
-  lookup_cache : Map[Int, PageIndex]
-  lookup_slots : FixedArray[Int]
-  mut lookup_next : Int
-  node_cache : Map[Int, CachedNode]
-  node_slots : FixedArray[Int]
-  mut node_next : Int
-  mut root : Int
-  mut freelist : Int
-  mut next_page : Int
+  pages : Map[Int32, Bytes]
+  lookup_cache : Map[Int32, PageIndex]
+  lookup_slots : FixedArray[Int32]
+  mut lookup_next : Int32
+  node_cache : Map[Int32, CachedNode]
+  node_slots : FixedArray[Int32]
+  mut node_next : Int32
+  mut root : Int32
+  mut freelist : Int32
+  mut next_page : Int32
   /// 自 `reset_changes` 以来的改动页原始字节，`None` 表示原本不存在。
-  undo : Map[Int, Bytes?]
+  undo : Map[Int32, Bytes?]
   /// 当前这次 `put`/`delete` 改过的页原始字节。
-  op_undo : Map[Int, Bytes?]
+  op_undo : Map[Int32, Bytes?]
   /// 当前这次操作碰过的页号。
-  op_touched : Map[Int, Bool]
+  op_touched : Map[Int32, Bool]
   /// 当前这次操作首次写进 `undo` 的页号。
-  op_added : Map[Int, Bool]
+  op_added : Map[Int32, Bool]
   /// 当前这次操作开始时的元数据，失败时整份还原。
-  mut op_root : Int
-  mut op_freelist : Int
-  mut op_next : Int
+  mut op_root : Int32
+  mut op_freelist : Int32
+  mut op_next : Int32
 }
 
 ///|
@@ -48,7 +48,7 @@ fn Tree::new() -> Tree {
 }
 
 ///|
-fn Tree::allocate(self : Tree) -> Int raise DbError {
+fn Tree::allocate(self : Tree) -> Int32 raise DbError {
   if self.freelist == 0 {
     let id = self.next_page
     self.next_page = id + 1
@@ -65,13 +65,13 @@ fn Tree::allocate(self : Tree) -> Int raise DbError {
 }
 
 ///|
-fn Tree::release(self : Tree, id : Int) -> Unit {
+fn Tree::release(self : Tree, id : Int32) -> Unit {
   self.set_page(id, page_bytes(encode_free(self.freelist)))
   self.freelist = id
 }
 
 ///|
-fn Tree::load(self : Tree, id : Int) -> Node raise DbError {
+fn Tree::load(self : Tree, id : Int32) -> Node raise DbError {
   match self.pages.get(id) {
     Some(page) => {
       if self.node_cache.get(id) is Some(cached) &&
@@ -87,7 +87,7 @@ fn Tree::load(self : Tree, id : Int) -> Node raise DbError {
 }
 
 ///|
-fn Tree::store_leaf(self : Tree, id : Int, leaf : Leaf) -> Unit raise DbError {
+fn Tree::store_leaf(self : Tree, id : Int32, leaf : Leaf) -> Unit raise DbError {
   self.set_page(id, page_bytes(encode_leaf(leaf)))
   self.cache_node(id, self.pages[id], Leaf(leaf))
 }
@@ -95,7 +95,7 @@ fn Tree::store_leaf(self : Tree, id : Int, leaf : Leaf) -> Unit raise DbError {
 ///|
 fn Tree::store_branch(
   self : Tree,
-  id : Int,
+  id : Int32,
   branch : Branch,
 ) -> Unit raise DbError {
   self.set_page(id, page_bytes(encode_branch(branch)))
@@ -103,7 +103,7 @@ fn Tree::store_branch(
 }
 
 ///|
-fn find_entry(entries : Array[Entry], key : Bytes) -> Int {
+fn find_entry(entries : Array[Entry], key : Bytes) -> Int32 {
   let mut low = 0
   let mut high = entries.length()
   while low < high {
@@ -118,7 +118,7 @@ fn find_entry(entries : Array[Entry], key : Bytes) -> Int {
 }
 
 ///|
-fn leaf_byte_size(leaf : Leaf) -> Int {
+fn leaf_byte_size(leaf : Leaf) -> Int32 {
   let mut size = 7
   for entry in leaf.entries {
     size = size + 4 + entry.key.length() + entry.value.length()
@@ -127,7 +127,7 @@ fn leaf_byte_size(leaf : Leaf) -> Int {
 }
 
 ///|
-fn branch_byte_size(branch : Branch) -> Int {
+fn branch_byte_size(branch : Branch) -> Int32 {
   let mut size = 3 + branch.children.length() * 4
   for key in branch.keys {
     size = size + 2 + key.length()
@@ -137,7 +137,7 @@ fn branch_byte_size(branch : Branch) -> Int {
 
 ///|
 /// 叶子 entry 的编码字节数：4 字节长度头 + key + value。
-fn leaf_entry_bytes(entry : Entry) -> Int {
+fn leaf_entry_bytes(entry : Entry) -> Int32 {
   4 + entry.key.length() + entry.value.length()
 }
 
@@ -219,7 +219,7 @@ fn split_branch(branch : Branch) -> (Branch, Bytes, Branch) raise DbError {
 ///|
 priv struct Split {
   separator : Bytes
-  right : Int
+  right : Int32
 }
 
 ///|
@@ -259,7 +259,7 @@ fn Tree::put(self : Tree, key : Bytes, value : Bytes) -> Unit raise DbError {
 ///|
 fn Tree::insert(
   self : Tree,
-  id : Int,
+  id : Int32,
   key : Bytes,
   value : Bytes,
 ) -> Split? raise DbError {
@@ -273,7 +273,7 @@ fn Tree::insert(
 ///|
 fn Tree::insert_leaf(
   self : Tree,
-  id : Int,
+  id : Int32,
   leaf : Leaf,
   key : Bytes,
   value : Bytes,
@@ -303,7 +303,7 @@ fn Tree::insert_leaf(
 ///|
 fn Tree::insert_branch(
   self : Tree,
-  id : Int,
+  id : Int32,
   branch : Branch,
   key : Bytes,
   value : Bytes,
@@ -329,7 +329,7 @@ fn Tree::insert_branch(
 }
 
 ///|
-fn find_child_index(branch : Branch, key : Bytes) -> Int {
+fn find_child_index(branch : Branch, key : Bytes) -> Int32 {
   let mut low = 0
   let mut high = branch.keys.length()
   while low < high {
@@ -397,7 +397,7 @@ fn Tree::delete(self : Tree, key : Bytes) -> Bool raise DbError {
 }
 
 ///|
-fn Tree::delete_at(self : Tree, id : Int, key : Bytes) -> Bool raise DbError {
+fn Tree::delete_at(self : Tree, id : Int32, key : Bytes) -> Bool raise DbError {
   match self.load(id) {
     Leaf(leaf) => {
       let index = find_entry(leaf.entries, key)
@@ -425,9 +425,9 @@ fn Tree::delete_at(self : Tree, id : Int, key : Bytes) -> Bool raise DbError {
 ///|
 fn Tree::rebalance(
   self : Tree,
-  id : Int,
+  id : Int32,
   branch : Branch,
-  index : Int,
+  index : Int32,
 ) -> Unit raise DbError {
   if branch.children.length() < 2 {
     return
@@ -442,7 +442,7 @@ fn Tree::rebalance(
 fn Tree::merge_child(
   self : Tree,
   branch : Branch,
-  left_index : Int,
+  left_index : Int32,
 ) -> Bool raise DbError {
   let right_index = left_index + 1
   let left_id = branch.children[left_index]
@@ -501,7 +501,7 @@ fn Tree::keys(self : Tree) -> Array[Bytes] raise DbError {
 }
 
 ///|
-fn Tree::leftmost(self : Tree, id : Int) -> Int raise DbError {
+fn Tree::leftmost(self : Tree, id : Int32) -> Int32 raise DbError {
   let mut current = id
   let mut remaining = self.next_page
   while remaining > 0 {

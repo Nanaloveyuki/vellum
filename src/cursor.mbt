@@ -10,8 +10,8 @@ pub struct Cursor {
   priv validity : CursorValidity
   priv end : Bytes?
   priv mut index : PageIndex?
-  priv mut slot : Int
-  priv mut remaining : Int
+  priv mut slot : Int32
+  priv mut remaining : Int32
 }
 
 ///|
@@ -36,7 +36,7 @@ fn Txn::cursor_generation(self : Txn) -> CursorValidity {
 fn Tree::seek_cursor(
   self : Tree,
   start : Bytes,
-) -> (PageIndex, Int)? raise DbError {
+) -> (PageIndex, Int32)? raise DbError {
   let mut id = self.root
   let mut remaining = self.next_page
   while id != 0 {

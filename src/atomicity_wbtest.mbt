@@ -4,14 +4,14 @@ fn bytes_of(text : String) -> Bytes {
 }
 
 ///|
-fn padded(n : Int) -> Bytes {
+fn padded(n : Int32) -> Bytes {
   Bytes::make(n, b'x')
 }
 
 ///|
 /// 直接从 map 读一页，不做解码；用于断言页字节真的没被动过。
-fn snapshot_pages(tree : Tree) -> Map[Int, Bytes] {
-  let copy : Map[Int, Bytes] = Map([])
+fn snapshot_pages(tree : Tree) -> Map[Int32, Bytes] {
+  let copy : Map[Int32, Bytes] = Map([])
   for id, page in tree.pages {
     copy[id] = page
   }
@@ -19,7 +19,7 @@ fn snapshot_pages(tree : Tree) -> Map[Int, Bytes] {
 }
 
 ///|
-fn pages_equal(left : Map[Int, Bytes], right : Map[Int, Bytes]) -> Bool {
+fn pages_equal(left : Map[Int32, Bytes], right : Map[Int32, Bytes]) -> Bool {
   if left.length() != right.length() {
     return false
   }
@@ -33,7 +33,7 @@ fn pages_equal(left : Map[Int, Bytes], right : Map[Int, Bytes]) -> Bool {
 }
 
 ///|
-fn meta_of(tree : Tree) -> (Int, Int, Int) {
+fn meta_of(tree : Tree) -> (Int32, Int32, Int32) {
   (tree.root, tree.freelist, tree.next_page)
 }
 

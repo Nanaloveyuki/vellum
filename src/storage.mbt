@@ -2,11 +2,11 @@
 // Each worker owns at most one 64-page buffer and reuses it only after write_at joins.
 async fn write_page_runs(
   file : @fs.File,
-  pages : Map[Int, Bytes],
-  ids : Array[Int],
-  runs : Array[(Int, Int)],
-  worker : Int,
-  workers : Int,
+  pages : Map[Int32, Bytes],
+  ids : Array[Int32],
+  runs : Array[(Int32, Int32)],
+  worker : Int32,
+  workers : Int32,
 ) -> Unit {
   let mut buffer : FixedArray[Byte]? = None
   for index = worker; index < runs.length(); index = index + workers {
@@ -37,7 +37,7 @@ async fn write_page_runs(
 // Never truncate the page file: unchanged pages must survive interrupted commits.
 async fn write_page_batch(
   path : String,
-  pages : Map[Int, Bytes],
+  pages : Map[Int32, Bytes],
 ) -> Unit raise DbError {
   let file = @fs.open(
     path,
@@ -118,8 +118,8 @@ async fn write_synced_bytes(path : String, bytes : Bytes) -> Unit raise DbError 
 ///|
 fn read_image(
   bytes : Bytes,
-  replayed : Map[Int, Bytes],
-) -> (Meta, Map[Int, Bytes]) raise DbError {
+  replayed : Map[Int32, Bytes],
+) -> (Meta, Map[Int32, Bytes]) raise DbError {
   let header = match replayed.get(0) {
     Some(page) => page
     None if bytes.length() >= page_size => bytes[:page_size].to_owned()
@@ -154,7 +154,7 @@ fn read_image(
       raise DbError::Corrupt
     }
   }
-  let pages : Map[Int, Bytes] = Map([])
+  let pages : Map[Int32, Bytes] = Map([])
   pages[0] = header
   for id in 1..<meta.page_count {
     let page = match replayed.get(id) {

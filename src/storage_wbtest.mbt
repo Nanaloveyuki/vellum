@@ -5,7 +5,7 @@ async test "checkpoint changes only supplied pages and preserves sparse gaps" {
   let path = "\{dir}/db"
   let original = Bytes::make(64 * page_size, b'u')
   write_synced_bytes(path, original)
-  let pages : Map[Int, Bytes] = Map([])
+  let pages : Map[Int32, Bytes] = Map([])
   pages[0] = Bytes::make(page_size, b'h')
   for i in 0..<20 {
     pages[2 * i + 1] = Bytes::make(page_size, i.to_byte())
@@ -26,7 +26,7 @@ async test "cancelled page batch joins workers before the file can be overwritte
   let dir = @fs.tmpdir(prefix="vellum-cancel-checkpoint")
   defer @fs.rmdir(dir, recursive=true)
   let path = "\{dir}/db"
-  let pages : Map[Int, Bytes] = Map([])
+  let pages : Map[Int32, Bytes] = Map([])
   for id in 0..<4096 {
     pages[id] = Bytes::make(page_size, b'x')
   }

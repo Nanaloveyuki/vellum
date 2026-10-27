@@ -1,9 +1,9 @@
 ///|
 priv struct Meta {
-  root : Int
-  freelist : Int
-  txn_id : Int
-  page_count : Int
+  root : Int32
+  freelist : Int32
+  txn_id : Int32
+  page_count : Int32
 }
 
 ///|

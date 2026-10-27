@@ -175,20 +175,20 @@ moon run src/cmd/scan_bench --target native --release
 
 ## 开发
 
-本地开发与 CI 固定使用 2026-09-20 工具链归档 `0.10.14+7d59c7ec9`（MoonBit 语言 0.10.14），同时安装对应的编译器、CLI 和 core。全新安装实测 `moon 0.1.20260920 (914d7da 2026-09-20)`、`moonc v0.10.14+7d59c7ec9 (2026-09-18)`；CLI 与语言版本号分别记录。
+本地开发与 CI 由 `.moonbit-toolchain` 固定工具链归档 `0.10.17+d971670cd`，同时安装对应的编译器、CLI 和 core。对应版本为 `moonc v0.10.17+d971670cd (2026-10-23)`、`moon 0.1.20261023 (3778465 2026-10-23)`；CLI 与语言版本号分别记录。
 
 在 Bash 中安装与 CI 相同的版本：
 
 ```bash
 set -eo pipefail
-curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- '0.10.14+7d59c7ec9'
+curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- "$(cat .moonbit-toolchain)"
 export PATH="${MOON_HOME:-$HOME/.moon}/bin:$PATH"
 moon version --all
 moonc -v
 moon update
 ```
 
-官方历史归档当前采用 60 天保留策略；本版本的 [二进制](https://cli.moonbitlang.com/binaries/0.10.14%2B7d59c7ec9/moonbit-linux-x86_64.tar.gz) 与 [core](https://cli.moonbitlang.com/cores/core-0.10.14%2B7d59c7ec9.tar.gz) HTTP 响应声明于 2026-11-20 到期。归档不可用时安装会失败，不回退到 latest。
+安装依赖官方归档可用；归档不可用时安装会失败，不回退到 latest。`moonbitlang/async@0.22.4` 依赖保持不变。
 
 ```sh
 moon fmt --check
@@ -199,9 +199,22 @@ moon test src --target wasm-gc
 
 磁盘测试在 native 运行；wasm-gc 只用于纯页结构与编码测试，不提供浏览器持久化 API。回归覆盖模型对照、跨页修改、撤销、页复用、缓存失效、I/O 故障与取消。
 
-[CI 工作流](.github/workflows/ci.yml) 在 Ubuntu 上运行上述检查与 native/纯 wasm-gc 测试，再以 native release 执行 `src/cmd/main` 快速示例、`src/cmd/bench` 点查基准、`src/cmd/metadata` 元数据示例和 `src/cmd/scan_bench` 固定结果扫描对照。程序核对失败会使 CI 失败，但不设耗时或性能通过阈值；本地按该执行顺序已运行通过，不代表远程 GitHub CI 已运行或通过。
+[CI 工作流](.github/workflows/ci.yml) 在 Ubuntu 上运行上述检查与 native/纯 wasm-gc 测试，再以 native release 执行 `src/cmd/main` 快速示例、`src/cmd/bench` 点查基准、`src/cmd/metadata` 元数据示例和 `src/cmd/scan_bench` 固定结果扫描对照。程序核对失败会使 CI 失败，但不设耗时或性能通过阈值。上述命令是新工具链的验证步骤，不代表已在新版本执行或通过；此前本地通过的结果属于旧工具链，也不代表远程 GitHub CI 已通过。
+
+native 构建需要 C 工具链，磁盘测试和示例需要可写工作目录；wasm-gc 测试使用随工具链安装的 moonrun。真实示例与基准可在仓库根目录运行：
+
+```sh
+moon run --target native --release src/cmd/main
+moon run --target native --release src/cmd/bench
+moon run --target native --release src/cmd/metadata
+moon run --target native --release src/cmd/scan_bench
+```
 
 独立进程验证在 WAL 同步后、主文件部分写入后、主文件同步后分别 SIGKILL，再由 0.2.0 和 0.3.0 恢复。六个场景均核对全部 600 条记录，随后成功提交并重开；这不等于整机掉电验证。
+
+## Unreleased
+
+- 开发与 CI 工具链固定到 `0.10.17+d971670cd`，对应 CLI `0.1.20261023`；不变更包版本或依赖版本。
 
 ## 许可证
 

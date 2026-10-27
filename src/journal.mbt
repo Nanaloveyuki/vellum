@@ -17,7 +17,7 @@ fn Tree::begin_operation(self : Tree) -> Unit {
 }
 
 ///|
-fn Tree::note_page(self : Tree, id : Int, previous : Bytes?) -> Unit {
+fn Tree::note_page(self : Tree, id : Int32, previous : Bytes?) -> Unit {
   if self.op_touched.contains(id) {
     return
   }
@@ -31,7 +31,7 @@ fn Tree::note_page(self : Tree, id : Int, previous : Bytes?) -> Unit {
 
 ///|
 /// 唯一写页入口。字节没有变化就什么都不做，也不记日志。
-fn Tree::set_page(self : Tree, id : Int, page : Bytes) -> Unit {
+fn Tree::set_page(self : Tree, id : Int32, page : Bytes) -> Unit {
   let previous = self.pages.get(id)
   if previous is Some(old) && old == page {
     return
@@ -87,9 +87,9 @@ fn Tree::commit_operation(self : Tree) -> Unit {
 /// `abort` 用这个入口，不再整份拷贝 `pages`。
 fn Tree::rollback_changes(
   self : Tree,
-  root : Int,
-  freelist : Int,
-  next_page : Int,
+  root : Int32,
+  freelist : Int32,
+  next_page : Int32,
 ) -> Unit {
   self.op_undo.clear()
   self.op_touched.clear()
@@ -108,7 +108,7 @@ fn Tree::rollback_changes(
 
 ///|
 /// 事务实际改过的页号，升序。只报真的被写过的页，不报初始状态相同却没变的页。
-fn Tree::changed_pages(self : Tree) -> Array[Int] {
+fn Tree::changed_pages(self : Tree) -> Array[Int32] {
   let ids = []
   for id, original in self.undo {
     match (original, self.pages.get(id)) {

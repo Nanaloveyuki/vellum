@@ -1,14 +1,14 @@
 ///|
 priv struct PageIndex {
   page : Bytes
-  offsets : FixedArray[Int]
+  offsets : FixedArray[Int32]
 }
 
 ///|
 // Entries are bound to immutable page identity, including replacements and rollback.
 fn Tree::page_index(
   self : Tree,
-  id : Int,
+  id : Int32,
   page : Bytes,
 ) -> PageIndex raise DbError {
   if self.lookup_cache.get(id) is Some(index) &&
@@ -73,7 +73,7 @@ fn index_position(
   index : PageIndex,
   key : BytesView,
   branch~ : Bool,
-) -> Int raise DbError {
+) -> Int32 raise DbError {
   let mut low = 0
   let mut high = index.offsets.length()
   while low < high {
@@ -104,7 +104,7 @@ fn lookup_leaf(index : PageIndex, key : Bytes) -> Bytes? raise DbError {
 }
 
 ///|
-fn lookup_child(index : PageIndex, key : Bytes) -> Int raise DbError {
+fn lookup_child(index : PageIndex, key : Bytes) -> Int32 raise DbError {
   let child = index_position(index, key[:], branch=true)
   read_u32(index.page, 3 + child * 4).reinterpret_as_int()
 }

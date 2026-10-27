@@ -1,5 +1,5 @@
 ///|
-fn cursor_order(left : Bytes, right : Bytes) -> Int {
+fn cursor_order(left : Bytes, right : Bytes) -> Int32 {
   for i, byte in left {
     if i >= right.length() {
       return 1

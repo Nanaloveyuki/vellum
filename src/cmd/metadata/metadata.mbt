@@ -17,7 +17,7 @@ suberror MetadataError {
 ///|
 fn validate_path(
   path : String,
-  root? : Bool = false,
+  root~ : Bool = false,
 ) -> Unit raise MetadataError {
   if root && path.is_empty() {
     return

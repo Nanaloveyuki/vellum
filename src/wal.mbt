@@ -5,12 +5,12 @@
 /// CRC 覆盖头部和负载，不含 CRC 自身。
 /// `encode_wal` 精确预分配整段日志，保持版本 1 的线格式。
 priv enum Frame {
-  Data(txn_id~ : Int, page_id~ : Int, page~ : Bytes)
-  Commit(txn_id~ : Int)
+  Data(txn_id~ : Int32, page_id~ : Int32, page~ : Bytes)
+  Commit(txn_id~ : Int32)
 }
 
 ///|
-fn frame_kind(frame : Frame) -> UInt {
+fn frame_kind(frame : Frame) -> UInt32 {
   match frame {
     Data(_) => 1U
     Commit(_) => 2U
@@ -18,14 +18,14 @@ fn frame_kind(frame : Frame) -> UInt {
 }
 
 ///|
-fn frame_txn_id(frame : Frame) -> Int {
+fn frame_txn_id(frame : Frame) -> Int32 {
   match frame {
     Data(txn_id~, ..) | Commit(txn_id~) => txn_id
   }
 }
 
 ///|
-fn frame_page_id(frame : Frame) -> Int {
+fn frame_page_id(frame : Frame) -> Int32 {
   match frame {
     Data(page_id~, ..) => page_id
     Commit(_) => 0
@@ -42,7 +42,7 @@ fn frame_payload(frame : Frame) -> Bytes {
 
 ///|
 /// 单帧字节数：16 字节头 + 负载 + 4 字节 CRC。
-fn frame_len(frame : Frame) -> Int {
+fn frame_len(frame : Frame) -> Int32 {
   16 + frame_payload(frame).length() + 4
 }
 
@@ -80,10 +80,10 @@ fn encode_wal(frames : Array[Frame]) -> Bytes {
 /// 契约（调用方按此分支处理）：
 /// 不完整的已知帧尾部被忽略；完整帧的字段或 CRC 损坏抛 `Corrupt`。
 /// 不重新同步。未提交帧不进入结果；同一页最后一次提交的值生效。
-fn replay_wal(wal : Bytes) -> Map[Int, Bytes] raise DbError {
+fn replay_wal(wal : Bytes) -> Map[Int32, Bytes] raise DbError {
   // 挂起的事务：txn_id -> (页 id, 页视图)。视图在提交前不复制。
-  let pending : Map[Int, Map[Int, BytesView]] = Map([])
-  let committed : Map[Int, Bytes] = Map([])
+  let pending : Map[Int32, Map[Int32, BytesView]] = Map([])
+  let committed : Map[Int32, Bytes] = Map([])
   let mut offset = 0
   while offset + 20 <= wal.length() {
     let kind = read_u32(wal, offset)

@@ -6,13 +6,13 @@ import {
 }
 
 // Values
-pub let max_value_len : Int
+pub let max_value_len : Int32
 
 pub async fn migrate_v1(String, String) -> Unit raise DbError
 
 pub async fn open(String) -> Db raise DbError
 
-pub let page_size : Int
+pub let page_size : Int32
 
 // Errors
 pub(all) suberror DbError {

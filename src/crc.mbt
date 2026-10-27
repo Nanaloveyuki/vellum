@@ -1,5 +1,5 @@
 ///|
-let crc32_table : FixedArray[UInt] = {
+let crc32_table : FixedArray[UInt32] = {
   let table = FixedArray::make(256, 0U)
   for i in 0..<256 {
     let mut crc = i.reinterpret_as_uint()
@@ -13,7 +13,7 @@ let crc32_table : FixedArray[UInt] = {
 
 ///|
 /// CRC-32/ISO-HDLC; same v1 checksum, one table lookup per byte.
-fn crc32(bytes : BytesView) -> UInt {
+fn crc32(bytes : BytesView) -> UInt32 {
   let mut crc = 0xFFFFFFFFU
   for byte in bytes {
     let index = ((crc ^ byte.to_uint()) & 0xFFU).reinterpret_as_int()

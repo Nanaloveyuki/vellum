@@ -3,7 +3,7 @@
 pub struct Db {
   priv path : String
   priv tree : Tree
-  priv mut txn_id : Int
+  priv mut txn_id : Int32
   priv mut txn : Txn?
   priv mut closed : Bool
   priv mut recovery_required : Bool
@@ -13,9 +13,9 @@ pub struct Db {
 /// 当前这一次读写。`commit` 之后别的 `open` 才能看见；`abort` 则回到上次提交。
 pub struct Txn {
   priv db : Db
-  priv base_root : Int
-  priv base_freelist : Int
-  priv base_next : Int
+  priv base_root : Int32
+  priv base_freelist : Int32
+  priv base_next : Int32
   priv mut state : TxnState
   priv mut cursor_validity : CursorValidity?
 }
@@ -182,7 +182,7 @@ async fn Txn::commit_until(
       page_count: tree.next_page,
     }),
   )
-  let pages : Map[Int, Bytes] = Map([])
+  let pages : Map[Int32, Bytes] = Map([])
   pages[0] = header
   let frames : Array[Frame] = [Data(txn_id=next_txn, page_id=0, page=header)]
   for id in dirty {

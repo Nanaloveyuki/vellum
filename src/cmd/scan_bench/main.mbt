@@ -1,5 +1,5 @@
 ///|
-fn byte_order(left : Bytes, right : Bytes) -> Int {
+fn byte_order(left : Bytes, right : Bytes) -> Int32 {
   for i, byte in left {
     if i >= right.length() {
       return 1
@@ -13,7 +13,7 @@ fn byte_order(left : Bytes, right : Bytes) -> Int {
 }
 
 ///|
-fn record_key(domain : String, index : Int) -> Bytes {
+fn record_key(domain : String, index : Int32) -> Bytes {
   @utf8.encode("\{domain}/\{1000000 + index}")
 }
 
@@ -52,7 +52,7 @@ async fn enumerate_sort_rows(
 }
 
 ///|
-async fn benchmark(dir : String, total : Int) -> Unit {
+async fn benchmark(dir : String, total : Int32) -> Unit {
   let path = "\{dir}/scale-\{total}.db"
   let before = (total - 100) / 2
   let after = total - 100 - before

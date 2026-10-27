@@ -1,10 +1,10 @@
 ///|
-fn bench_key(i : Int) -> Bytes {
+fn bench_key(i : Int32) -> Bytes {
   @utf8.encode("key-\{1000000 + i}")
 }
 
 ///|
-async fn bench_workload(dir : String, value_len : Int) -> Unit {
+async fn bench_workload(dir : String, value_len : Int32) -> Unit {
   let keys = [ for i in 0..<4096 => bench_key(i) ]
   let payload = Bytes::make(value_len, b'x')
   let alternate = Bytes::make(value_len, b'y')
@@ -120,7 +120,7 @@ async fn bench_workload(dir : String, value_len : Int) -> Unit {
 }
 
 ///|
-async fn bench_fairness(dir : String, chunk : Int, sample : Int) -> Unit {
+async fn bench_fairness(dir : String, chunk : Int32, sample : Int32) -> Unit {
   let db = @vellum.open("\{dir}/fair-\{chunk}-\{sample}.db")
   let keys = [ for i in 0..<20000 => bench_key(i) ]
   let payload = Bytes::make(64, b'x')

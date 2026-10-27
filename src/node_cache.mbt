@@ -15,7 +15,7 @@ fn copy_node(node : Node) -> Node {
 }
 
 ///|
-fn Tree::cache_node(self : Tree, id : Int, page : Bytes, node : Node) -> Unit {
+fn Tree::cache_node(self : Tree, id : Int32, page : Bytes, node : Node) -> Unit {
   if !self.node_cache.contains(id) {
     self.node_cache.remove(self.node_slots[self.node_next])
     self.node_slots[self.node_next] = id

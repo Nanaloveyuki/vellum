@@ -74,9 +74,9 @@ async fn migration_read_source(path : String) -> Bytes raise DbError {
 
 ///|
 fn migration_each_entry(
-  pages : Map[Int, Bytes],
+  pages : Map[Int32, Bytes],
   visit : (BytesView, BytesView) -> Unit raise DbError,
-) -> Int raise DbError {
+) -> Int32 raise DbError {
   let mut count = 0
   for _, page in pages {
     if page[0] == kind_leaf {
@@ -129,8 +129,8 @@ fn migration_value(tree : Tree, key : BytesView) -> BytesView? raise DbError {
 ///|
 fn migration_verify(
   tree : Tree,
-  source : Map[Int, Bytes],
-  expected : Int,
+  source : Map[Int32, Bytes],
+  expected : Int32,
 ) -> Unit raise DbError {
   tree.validate()
   let mut actual = 0

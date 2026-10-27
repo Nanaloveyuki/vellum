@@ -1,5 +1,5 @@
 ///|
-fn read_u32(bytes : Bytes, index : Int) -> UInt raise DbError {
+fn read_u32(bytes : Bytes, index : Int32) -> UInt32 raise DbError {
   guard index >= 0 && index + 4 <= bytes.length() else {
     raise DbError::Corrupt
   }
@@ -7,7 +7,7 @@ fn read_u32(bytes : Bytes, index : Int) -> UInt raise DbError {
 }
 
 ///|
-fn read_u16(bytes : Bytes, index : Int) -> Int raise DbError {
+fn read_u16(bytes : Bytes, index : Int32) -> Int32 raise DbError {
   guard index >= 0 && index + 2 <= bytes.length() else {
     raise DbError::Corrupt
   }
@@ -15,7 +15,7 @@ fn read_u16(bytes : Bytes, index : Int) -> Int raise DbError {
 }
 
 ///|
-fn read_u64_as_int(bytes : Bytes, index : Int) -> Int raise DbError {
+fn read_u64_as_int(bytes : Bytes, index : Int32) -> Int32 raise DbError {
   guard index >= 0 && index + 8 <= bytes.length() else {
     raise DbError::Corrupt
   }
@@ -25,22 +25,22 @@ fn read_u64_as_int(bytes : Bytes, index : Int) -> Int raise DbError {
 }
 
 ///|
-fn write_u32(buf : FixedArray[Byte], index : Int, value : UInt) -> Unit {
+fn write_u32(buf : FixedArray[Byte], index : Int32, value : UInt32) -> Unit {
   buf.unsafe_write_uint32_le(index, value)
 }
 
 ///|
-fn write_u16(buf : FixedArray[Byte], index : Int, value : Int) -> Unit {
+fn write_u16(buf : FixedArray[Byte], index : Int32, value : Int32) -> Unit {
   buf.unsafe_write_uint16_le(index, value.reinterpret_as_uint().to_uint16())
 }
 
 ///|
-fn write_u64_int(buf : FixedArray[Byte], index : Int, value : Int) -> Unit {
+fn write_u64_int(buf : FixedArray[Byte], index : Int32, value : Int32) -> Unit {
   buf.unsafe_write_uint64_le(index, value.to_uint64())
 }
 
 ///|
-fn copy_bytes(src : Bytes, dst : FixedArray[Byte], dst_index : Int) -> Unit {
+fn copy_bytes(src : Bytes, dst : FixedArray[Byte], dst_index : Int32) -> Unit {
   dst.blit_from_bytes(dst_index, src, 0, src.length())
 }
 
@@ -55,7 +55,7 @@ fn fixed_to_bytes(buf : FixedArray[Byte]) -> Bytes {
 }
 
 ///|
-fn compare_bytes_view(left : BytesView, right : BytesView) -> Int {
+fn compare_bytes_view(left : BytesView, right : BytesView) -> Int32 {
   let shared = left.length().min(right.length())
   for i in 0..<shared {
     let difference = left[i].to_int() - right[i].to_int()

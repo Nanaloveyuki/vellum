@@ -1,12 +1,12 @@
 ///|
 priv enum LegacyNode {
-  LegacyLeaf(keys~ : Array[BytesView], right~ : Int)
-  LegacyBranch(keys~ : Array[BytesView], children~ : Array[Int])
-  LegacyFree(next~ : Int)
+  LegacyLeaf(keys~ : Array[BytesView], right~ : Int32)
+  LegacyBranch(keys~ : Array[BytesView], children~ : Array[Int32])
+  LegacyFree(next~ : Int32)
 }
 
 ///|
-fn legacy_compare(left : BytesView, right : BytesView) -> Int {
+fn legacy_compare(left : BytesView, right : BytesView) -> Int32 {
   if left.length() != right.length() {
     return left.length() - right.length()
   }
@@ -20,7 +20,7 @@ fn legacy_compare(left : BytesView, right : BytesView) -> Int {
 }
 
 ///|
-fn legacy_decode_leaf(page : Bytes) -> (Array[BytesView], Int) raise DbError {
+fn legacy_decode_leaf(page : Bytes) -> (Array[BytesView], Int32) raise DbError {
   guard page.length() == page_size && page[0] == kind_leaf else {
     raise DbError::Corrupt
   }
@@ -50,7 +50,7 @@ fn legacy_decode_leaf(page : Bytes) -> (Array[BytesView], Int) raise DbError {
 ///|
 fn legacy_decode_branch(
   page : Bytes,
-) -> (Array[BytesView], Array[Int]) raise DbError {
+) -> (Array[BytesView], Array[Int32]) raise DbError {
   guard page.length() == page_size && page[0] == kind_branch else {
     raise DbError::Corrupt
   }
@@ -119,8 +119,8 @@ fn legacy_decode_header(page : Bytes) -> Meta raise DbError {
 ///|
 fn legacy_read_image(
   bytes : Bytes,
-  replayed : Map[Int, Bytes],
-) -> (Meta, Map[Int, Bytes]) raise DbError {
+  replayed : Map[Int32, Bytes],
+) -> (Meta, Map[Int32, Bytes]) raise DbError {
   let header = match replayed.get(0) {
     Some(page) => page
     None if bytes.length() >= page_size => bytes[:page_size].to_owned()
@@ -147,7 +147,7 @@ fn legacy_read_image(
       raise DbError::Corrupt
     }
   }
-  let pages : Map[Int, Bytes] = Map([])
+  let pages : Map[Int32, Bytes] = Map([])
   pages[0] = header
   for id in 1..<meta.page_count {
     let page = match replayed.get(id) {
@@ -161,9 +161,9 @@ fn legacy_read_image(
     }
     pages[id] = page
   }
-  let visited : Map[Int, Bool] = Map([])
-  let leaves : Array[(Int, Int)] = []
-  let stack : Array[(Int, BytesView?, BytesView?)] = []
+  let visited : Map[Int32, Bool] = Map([])
+  let leaves : Array[(Int32, Int32)] = []
+  let stack : Array[(Int32, BytesView?, BytesView?)] = []
   if meta.root != 0 {
     stack.push((meta.root, None, None))
   }

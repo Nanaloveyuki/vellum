@@ -7,13 +7,13 @@ priv struct Entry {
 ///|
 priv struct Leaf {
   entries : Array[Entry]
-  right : Int
+  right : Int32
 }
 
 ///|
 priv struct Branch {
   keys : Array[Bytes]
-  children : Array[Int]
+  children : Array[Int32]
 }
 
 ///|
@@ -33,7 +33,7 @@ priv enum Node {
 }
 
 ///|
-fn compare_bytes(left : Bytes, right : Bytes) -> Int {
+fn compare_bytes(left : Bytes, right : Bytes) -> Int32 {
   compare_bytes_view(left[:], right[:])
 }
 
@@ -148,7 +148,7 @@ fn decode_branch(page : Bytes) -> Branch raise DbError {
 }
 
 ///|
-fn encode_free(next : Int) -> FixedArray[Byte] {
+fn encode_free(next : Int32) -> FixedArray[Byte] {
   let page = blank_page()
   page[0] = kind_free
   write_u32(page, 1, next.reinterpret_as_uint())
@@ -156,7 +156,7 @@ fn encode_free(next : Int) -> FixedArray[Byte] {
 }
 
 ///|
-fn decode_free(page : Bytes) -> Int raise DbError {
+fn decode_free(page : Bytes) -> Int32 raise DbError {
   guard page.length() == page_size && page[0] == kind_free else {
     raise DbError::Corrupt
   }

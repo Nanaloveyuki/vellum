@@ -4,7 +4,7 @@ test "crc32 matches the iso-hdlc check value" {
 }
 
 ///|
-fn reference_crc32(bytes : BytesView) -> UInt {
+fn reference_crc32(bytes : BytesView) -> UInt32 {
   let mut crc = 0xFFFFFFFFU
   for byte in bytes {
     crc = crc ^ byte.to_uint()

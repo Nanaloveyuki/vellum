@@ -1,5 +1,5 @@
 ///|
-fn model_order(left : Bytes, right : Bytes) -> Int {
+fn model_order(left : Bytes, right : Bytes) -> Int32 {
   for i, byte in left {
     if i >= right.length() {
       return 1
@@ -13,7 +13,7 @@ fn model_order(left : Bytes, right : Bytes) -> Int {
 }
 
 ///|
-fn model_key(index : Int) -> Bytes {
+fn model_key(index : Int32) -> Bytes {
   let length = [0, 1, 2, 3, 12, 40][index % 6]
   if length == 0 {
     return b""

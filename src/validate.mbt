@@ -8,9 +8,9 @@ fn Tree::validate(self : Tree) -> Unit raise DbError {
     self.freelist < self.next_page else {
     raise DbError::Corrupt
   }
-  let visited : Map[Int, Bool] = Map([])
-  let leaves : Array[(Int, Int)] = []
-  let stack : Array[(Int, Bytes?, Bytes?)] = []
+  let visited : Map[Int32, Bool] = Map([])
+  let leaves : Array[(Int32, Int32)] = []
+  let stack : Array[(Int32, Bytes?, Bytes?)] = []
   if self.root != 0 {
     stack.push((self.root, None, None))
   }
