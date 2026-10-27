@@ -8,4 +8,4 @@ status: accepted
 
 记录仅含路径、非负 Int64 字节大小、有符号 Int64 修改时间；路径已规范、区分大小写、以 `/` 分隔，拒绝空记录路径、绝对/盘符、NUL、反斜杠、重复/尾部分隔符及 `.`/`..` 段，不暗中折叠。空目录查询表示根，其他目录同规则。写入 upsert，删除缺失返回 false；改名源缺失报错、目标存在冲突且不覆盖，同路径且源存在成功无变化。编码需保序及无字段边界歧义，但不增加自动索引框架。不承诺通用 Unicode、符号链接或跨 OS 路径正确性。
 
-仓库 0.4.0 已实现 [metadata 示例](../../src/cmd/metadata/metadata.mbt) 与 [native 可执行程序](../../src/cmd/metadata/main.mbt)，尚未发布到 Mooncakes，不属于已发布的 0.3.0。仅消费 public Db/Txn/Cursor；逻辑维护失败在提交前撤销整个事务，提交错误保留 RecoveryRequired 不确定性。native 运行核对了目录直接子项、有符号时间极值和平局、真实容量失败后的全事务撤销，以及重开后的全部主记录和两个索引。
+仓库 0.4.0 已实现 [metadata 示例](../../src/cmd/metadata/metadata.mbt) 与 [native 可执行程序](../../src/cmd/metadata/main.mbt)，随 0.4.1 发布到 Mooncakes，不属于 0.3.0。仅消费 public Db/Txn/Cursor；逻辑维护失败在提交前撤销整个事务，提交错误保留 RecoveryRequired 不确定性。native 运行核对了目录直接子项、有符号时间极值和平局、真实容量失败后的全事务撤销，以及重开后的全部主记录和两个索引。

@@ -10,4 +10,4 @@ status: accepted
 
 用户确认 async `Txn.scan(start : Bytes, end? : Bytes)`、`Txn.scan_prefix(prefix : Bytes)` 返回 `Cursor`，async `Cursor.next()` 返回独立拥有的可选键值对，均抛 `DbError`；从下界定位一次后增量沿叶链，不全库枚举/排序、逐行重新下降或增加反向/分页/重复 interface。范围 `[start,end)` 可无上界，逆序报无载荷 `InvalidRange`，相等为空；空前缀全库，全 0xff 前缀无有限上界，其余取最短字节后继作为排除上界。检查优先级为 `Closed`、`RecoveryRequired`、事务 `TxnBusy/TxnClosed`、无载荷 `CursorInvalidated`，最后行或 EOF；scan 参数检查也在事务状态后，有效 EOF 重复 `None`。[现有状态优先级](../../src/db.mbt#L84-L98)
 
-仓库 0.4.0 已实现于 [cursor.mbt](../../src/cursor.mbt)，尚未发布到 Mooncakes。同一代游标共享惰性创建的有效性令牌；写尝试只将令牌失效，下一代首次扫描才分配新令牌，不依赖会回绕的计数器。native 回归通过 public seam 检查二进制范围、前缀、跨页、失效和行所有权；必要白盒安排覆盖空叶、提交忙态、真实 I/O 失败与取消。
+仓库 0.4.0 已实现于 [cursor.mbt](../../src/cursor.mbt)，随 0.4.1 发布到 Mooncakes。同一代游标共享惰性创建的有效性令牌；写尝试只将令牌失效，下一代首次扫描才分配新令牌，不依赖会回绕的计数器。native 回归通过 public seam 检查二进制范围、前缀、跨页、失效和行所有权；必要白盒安排覆盖空叶、提交忙态、真实 I/O 失败与取消。

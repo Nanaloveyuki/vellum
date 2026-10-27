@@ -8,15 +8,15 @@ vellum 是用 MoonBit 编写的嵌入式键值存储，直接在应用进程里�
 - 一次事务可以修改多个键，最后统一 `commit`，或用 `abort` 撤销。
 - 重新打开时自动恢复完整已提交的 WAL，并检查页结构。
 
-## 快速开始（已发布的 0.3.0）
+## 快速开始（0.4.1）
 
-已发布的 0.3.0 仍使用 v1 shortlex；下文依赖示例对应该发布版。当前仓库版本为 0.4.0，使用 v2，尚未发布到 Mooncakes；范围/前缀游标、元数据示例和显式迁移等后续章节描述的是仓库 0.4.0，而非下文安装的 0.3.0。
+0.4.1 使用 v2 字节字典序格式，包含范围/前缀游标、元数据示例和显式迁移。0.3.0 及更早版本使用 v1 shortlex；升级已有数据库前请阅读下文的显式迁移说明。
 
 在 `moon.mod` 中添加依赖：
 
 ```text
 import {
-  "Nanaloveyuki/vellum@0.3.0",
+  "Nanaloveyuki/vellum@0.4.1",
 }
 ```
 
@@ -72,7 +72,7 @@ async fn main {
 
 ## 范围与前缀扫描
 
-以下是仓库 0.4.0 的 API，不包含在已发布的 0.3.0 中。
+以下 API 包含在 0.4.1 中，不适用于 0.3.0。
 
 `Txn.scan(start, end=...)` 按字节字典序遍历 `[start,end)`，省略 `end` 表示无上界；相等边界是空范围，逆序边界报 `InvalidRange`。`Txn.scan_prefix(prefix)` 返回同一种 `Cursor`：空前缀扫描全部键，全 `0xff` 前缀也可使用。
 
@@ -91,7 +91,7 @@ txn.abort()
 
 ## 调用者文件元数据示例
 
-仓库 0.4.0 的 `src/cmd/metadata` 只通过 public 事务和游标维护本地主记录及记录目录、记录修改时间两个二级索引：
+`src/cmd/metadata` 只通过 public 事务和游标维护本地主记录及记录目录、记录修改时间两个二级索引：
 
 ```sh
 moon run src/cmd/metadata --target native
@@ -105,7 +105,7 @@ moon run src/cmd/metadata --target native
 
 ## 显式迁移 v1
 
-仓库 0.4.0 提供 `@vellum.migrate_v1(source, destination)`，不需要先调用 `open` 或扫描。停用源库、确保单所有者及路径稳定，并准备一个已有的目标父目录：
+0.4.1 提供 `@vellum.migrate_v1(source, destination)`，不需要先调用 `open` 或扫描。停用源库、确保单所有者及路径稳定，并准备一个已有的目标父目录：
 
 ```mbt nocheck
 @vellum.migrate_v1("old.db", "converted.db")
@@ -123,8 +123,8 @@ let converted = @vellum.open("converted.db")
 - **同一路径只打开一个 `Db`。** 没有文件锁，同一进程或不同进程同时写入会损坏数据；没有并行读快照。
 - `open` 会把整个库载入内存并验证结构，内存占用随库大小增长。删除后的空间会复用，但文件不会缩小。
 - 固定 4096 字节页。单个 value 最多 4000 字节，且 `key.length() + value.length() <= 4085`；键和值不能跨页，分支分隔键也必须能放进页。超限抛 `ValueTooLarge`。
-- 仓库 0.4.0 的格式 v2 使用无符号字节字典序：首个不同字节决定大小，相同前缀的短键在前，例如 `b"aa"` 在 `b"z"` 之前。空键、空值及任意二进制键均可使用；`get` 返回独立拥有的值。
-- 仓库 0.4.0 的普通 `open` 仅接受 v2，不自动升级。有效 v1 shortlex 库报无载荷 `UnsupportedFormat`；先只读覆盖已提交 WAL 再验证，拒绝时不回写主文件、不创建或清空源 WAL。坏头、节点、图或完整 WAL 帧仍报 `Corrupt`。显式迁移见上节。
+- 格式 v2 使用无符号字节字典序：首个不同字节决定大小，相同前缀的短键在前，例如 `b"aa"` 在 `b"z"` 之前。空键、空值及任意二进制键均可使用；`get` 返回独立拥有的值。
+- 普通 `open` 仅接受 v2，不自动升级。有效 v1 shortlex 库报无载荷 `UnsupportedFormat`；先只读覆盖已提交 WAL 再验证，拒绝时不回写主文件、不创建或清空源 WAL。坏头、节点、图或完整 WAL 帧仍报 `Corrupt`。显式迁移见上节。
 - 主文件与 WAL 都显式同步。恢复覆盖进程中断及日志记录页的部分写入，不能补回日志中没有的缺失页。首次创建的父目录项未同步，尚未验证整机掉电耐久性。
 - 数据页没有 CRC，value 的位翻转不一定能检出；WAL 完整帧损坏会报 `Corrupt`，但 v2 沿用原有日志结构，没有事务级页数或摘要，不能保证检出按完整帧边界丢失的日志。恢复不是备份。
 
@@ -132,7 +132,7 @@ let converted = @vellum.open("converted.db")
 
 ## 0.4.0
 
-当前仓库版本为 0.4.0，尚未发布到 Mooncakes。
+0.4.0 的实现随 0.4.1 一并发布，0.4.0 未单独发布到 Mooncakes。
 
 使用 v2 字节字典序格式，新增事务内前向范围/前缀游标、只读显式 v1 迁移、调用者文件元数据示例和固定结果扫描规模对照。与 0.2.0/0.3.0 的 v1 shortlex 不直接读写兼容：普通 `open` 对有效 v1 报 `UnsupportedFormat`，须显式调用 `migrate_v1` 在不同路径重建，再由调用者切换路径；源主文件和 WAL 全程只读。
 
@@ -161,7 +161,7 @@ moon run src/cmd/bench --target native --release
 
 ## 固定结果的扫描规模对照
 
-仓库 0.4.0 可运行独立 native release 基准：
+可运行独立 native release 基准：
 
 ```sh
 moon run src/cmd/scan_bench --target native --release
@@ -212,9 +212,10 @@ moon run --target native --release src/cmd/scan_bench
 
 独立进程验证在 WAL 同步后、主文件部分写入后、主文件同步后分别 SIGKILL，再由 0.2.0 和 0.3.0 恢复。六个场景均核对全部 600 条记录，随后成功提交并重开；这不等于整机掉电验证。
 
-## Unreleased
+## 0.4.1 - 2026-10-27
 
-- 开发与 CI 工具链固定到 `0.10.17+d971670cd`，对应 CLI `0.1.20261023`；不变更包版本或依赖版本。
+- 开发与 CI 工具链固定到 `0.10.17+d971670cd`，对应 CLI `0.1.20261023`；第三方依赖版本不变。
+- 首次发布 0.4 系列的 v2 格式、事务游标、显式 v1 迁移和元数据示例；既有 v1 数据库须显式迁移。
 
 ## 许可证
 
