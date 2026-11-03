@@ -8,15 +8,15 @@ vellum 是用 MoonBit 编写的嵌入式键值存储，直接在应用进程里�
 - 一次事务可以修改多个键，最后统一 `commit`，或用 `abort` 撤销。
 - 重新打开时自动恢复完整已提交的 WAL，并检查页结构。
 
-## 快速开始（0.4.1）
+## 快速开始（0.4.2）
 
-0.4.1 使用 v2 字节字典序格式，包含范围/前缀游标、元数据示例和显式迁移。0.3.0 及更早版本使用 v1 shortlex；升级已有数据库前请阅读下文的显式迁移说明。
+0.4.2 使用 v2 字节字典序格式，包含范围/前缀游标、元数据示例和显式迁移。0.3.0 及更早版本使用 v1 shortlex；升级已有数据库前请阅读下文的显式迁移说明。
 
 在 `moon.mod` 中添加依赖：
 
 ```text
 import {
-  "Nanaloveyuki/vellum@0.4.1",
+  "Nanaloveyuki/vellum@0.4.2",
 }
 ```
 
@@ -72,7 +72,7 @@ async fn main {
 
 ## 范围与前缀扫描
 
-以下 API 包含在 0.4.1 中，不适用于 0.3.0。
+以下 API 包含在 0.4.2 中，不适用于 0.3.0。
 
 `Txn.scan(start, end=...)` 按字节字典序遍历 `[start,end)`，省略 `end` 表示无上界；相等边界是空范围，逆序边界报 `InvalidRange`。`Txn.scan_prefix(prefix)` 返回同一种 `Cursor`：空前缀扫描全部键，全 `0xff` 前缀也可使用。
 
@@ -105,7 +105,7 @@ moon run src/cmd/metadata --target native
 
 ## 显式迁移 v1
 
-0.4.1 提供 `@vellum.migrate_v1(source, destination)`，不需要先调用 `open` 或扫描。停用源库、确保单所有者及路径稳定，并准备一个已有的目标父目录：
+0.4.2 提供 `@vellum.migrate_v1(source, destination)`，不需要先调用 `open` 或扫描。停用源库、确保单所有者及路径稳定，并准备一个已有的目标父目录：
 
 ```mbt nocheck
 @vellum.migrate_v1("old.db", "converted.db")
@@ -175,7 +175,7 @@ moon run src/cmd/scan_bench --target native --release
 
 ## 开发
 
-本地开发与 CI 由 `.moonbit-toolchain` 固定工具链归档 `0.10.17+d971670cd`，同时安装对应的编译器、CLI 和 core。对应版本为 `moonc v0.10.17+d971670cd (2026-10-23)`、`moon 0.1.20261023 (3778465 2026-10-23)`；CLI 与语言版本号分别记录。
+本地开发与 CI 由 `.moonbit-toolchain` 固定工具链归档 `0.10.19+97801ee1b`，同时安装对应的编译器、CLI 和 core。对应版本为 `moonc v0.10.19+97801ee1b (2026-10-30)`、`moon 0.1.20261029`；CLI 与语言版本号分别记录。
 
 在 Bash 中安装与 CI 相同的版本：
 
@@ -211,6 +211,11 @@ moon run --target native --release src/cmd/scan_bench
 ```
 
 独立进程验证在 WAL 同步后、主文件部分写入后、主文件同步后分别 SIGKILL，再由 0.2.0 和 0.3.0 恢复。六个场景均核对全部 600 条记录，随后成功提交并重开；这不等于整机掉电验证。
+
+## 0.4.2 - 2026-11-03
+
+- 开发与 CI 工具链更新到编译器 `0.10.19+97801ee1b`、CLI `0.1.20261029`，保留 `moonbitlang/async@0.22.4`。
+- 公开 API、v2 磁盘格式、事务及恢复行为不变；验证命令见开发章节。
 
 ## 0.4.1 - 2026-10-27
 
