@@ -1,5 +1,6 @@
 ///|
 /// `open` 和事务操作失败时抛出这个错误，调用方按构造器分支。
+#derive(Eq, Debug)
 pub(all) suberror DbError {
   /// `close` 之后还在使用这个库或事务。
   Closed
@@ -23,7 +24,7 @@ pub(all) suberror DbError {
   Corrupt
   /// 读或写文件失败。参数是底层错误文本。
   Io(String)
-} derive(Eq, Debug)
+}
 
 ///|
 pub extend DbError with Eq::{equal, not_equal}

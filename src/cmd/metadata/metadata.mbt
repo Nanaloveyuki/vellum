@@ -1,18 +1,20 @@
 ///|
+#derive(Eq, Debug)
 struct Record {
   path : String
   size : Int64
   mtime : Int64
-} derive(Eq, Debug)
+}
 
 ///|
+#derive(Eq, Debug)
 suberror MetadataError {
   InvalidPath
   InvalidSize
   MissingRecord
   RenameConflict
   InvalidRecord
-} derive(Eq, Debug)
+}
 
 ///|
 fn validate_path(
@@ -137,7 +139,7 @@ async fn put_record(txn : @vellum.Txn, record : Record) -> Unit {
 }
 
 ///|
-async fn abort_update(txn : @vellum.Txn) -> Unit noraise {
+async fn abort_update(txn : @vellum.Txn) -> Unit noraise + nocancel {
   @async.protect_from_cancel(() => txn.abort()) catch {
     _ => ()
   }

@@ -8,10 +8,12 @@ import {
 // Values
 
 // Errors
-type MetadataError derive(Eq, @debug.Debug)
+#derive(Eq, @debug.Debug)
+type MetadataError
 
 // Types and methods
-type Record derive(Eq, @debug.Debug)
+#derive(Eq, @debug.Debug)
+type Record
 
 // Type aliases
 

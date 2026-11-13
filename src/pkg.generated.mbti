@@ -15,6 +15,7 @@ pub async fn open(String) -> Db raise DbError
 pub let page_size : Int32
 
 // Errors
+#derive(Eq, @debug.Debug)
 pub(all) suberror DbError {
   Closed
   TxnOpen
@@ -27,7 +28,7 @@ pub(all) suberror DbError {
   CursorInvalidated
   Corrupt
   Io(String)
-} derive(Eq, @debug.Debug)
+}
 pub fn DbError::equal(Self, Self) -> Bool
 pub fn DbError::not_equal(Self, Self) -> Bool
 pub fn DbError::output(Self, &Logger) -> Unit
