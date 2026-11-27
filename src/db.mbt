@@ -37,8 +37,9 @@ fn io_error(err : Error) -> DbError {
 async fn read_all_bytes(path : String) -> Bytes raise DbError {
   let present = @fs.exists(path) catch { err => raise io_error(err) }
   if present {
-    let data = @fs.read_file(path) catch { err => raise io_error(err) }
-    data.binary()
+    @fs.read_binary(path) catch {
+      err => raise io_error(err)
+    }
   } else {
     b""
   }

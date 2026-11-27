@@ -1,7 +1,7 @@
 import {
-  "moonbitlang/async",
-  "moonbitlang/async/fs",
-  "moonbitlang/async/os_error",
+  "moonbitlang/core/async",
+  "moonbitlang/core/async/fs",
+  "moonbitlang/core/async/os_error",
   "moonbitlang/core/debug",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/random",
@@ -10,6 +10,7 @@ import {
 warnings = "-unused_package"
 
 options(
+  "allow-experimental-packages": true,
   targets: {
     "db.mbt": [ "native" ],
     "db_test.mbt": [ "native" ],

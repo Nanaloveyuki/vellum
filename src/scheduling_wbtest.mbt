@@ -1,7 +1,7 @@
 ///|
 async test "cancelled cooperative batch can abort without losing committed data" {
   let dir = @fs.tmpdir(prefix="vellum-cancel-batch")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = open(path)
   let first = db.begin()
@@ -47,7 +47,7 @@ async test "cancelled cooperative batch can abort without losing committed data"
 ///|
 async test "cancelled commit requires recovery and permits a verified subsequent commit" {
   let dir = @fs.tmpdir(prefix="vellum-cancel-commit")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = open(path)
   let first = db.begin()

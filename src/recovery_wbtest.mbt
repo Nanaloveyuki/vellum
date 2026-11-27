@@ -2,7 +2,7 @@
 async test "complete redo repairs torn header and tail while retaining unchanged pages" {
   for tear_header in [false, true] {
     let dir = @fs.tmpdir(prefix="vellum-redo")
-    defer @fs.rmdir(dir, recursive=true)
+    defer @fs.remove(dir, recursive=true)
     let path = "\{dir}/db"
     let db = open(path)
     let first = db.begin()
@@ -47,7 +47,7 @@ async test "complete redo repairs torn header and tail while retaining unchanged
 ///|
 async test "missing unchanged pages cannot be invented by redo" {
   let dir = @fs.tmpdir(prefix="vellum-missing")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = open(path)
   let first = db.begin()
@@ -72,7 +72,7 @@ async test "missing unchanged pages cannot be invented by redo" {
 ///|
 async test "failed page checkpoint blocks rollback and recovers committed WAL" {
   let dir = @fs.tmpdir(prefix="vellum-failed-checkpoint")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = open(path)
   let txn = db.begin()
@@ -97,7 +97,7 @@ async test "failed page checkpoint blocks rollback and recovers committed WAL" {
     _ => fail("failed commit begin accepted")
   }
   db.close()
-  @fs.rmdir(path)
+  @fs.remove(path)
   let recovered = open(path)
   let read = recovered.begin()
   assert_eq(read.get(b"committed"), Some(b"yes"))
@@ -108,7 +108,7 @@ async test "failed page checkpoint blocks rollback and recovers committed WAL" {
 ///|
 async test "WAL write failure requires reopening and leaves old commit intact" {
   let dir = @fs.tmpdir(prefix="vellum-wal-failure")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = open(path)
   let first = db.begin()
@@ -131,7 +131,7 @@ async test "WAL write failure requires reopening and leaves old commit intact" {
     _ => fail("poisoned write accepted")
   }
   db.close()
-  @fs.rmdir(wal_path(path))
+  @fs.remove(wal_path(path))
   let reopened = open(path)
   let read = reopened.begin()
   assert_eq(read.get(b"kept"), Some(b"old"))
@@ -143,7 +143,7 @@ async test "WAL write failure requires reopening and leaves old commit intact" {
 ///|
 async test "committing transaction refuses reads rollback and close" {
   let dir = @fs.tmpdir(prefix="vellum-busy")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = open(path)
   let txn = db.begin()

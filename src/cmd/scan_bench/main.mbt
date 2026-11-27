@@ -144,7 +144,7 @@ async fn benchmark(dir : String, total : Int32) -> Unit {
 ///|
 async fn main {
   let dir = @fs.tmpdir(prefix="vellum-scan-bench")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   println(
     "native; run with --release; milliseconds from monotonic async.now; 3 samples; fixed 100 owned rows; baseline=FULL public cursor enumerate+independent unsigned byte sort+filter (not point-get or MoonKV)",
   )

@@ -14,7 +14,7 @@ async fn write_page_runs(
     let id = ids[start]
     let position = id.to_int64() * page_size.to_int64()
     if count == 1 {
-      file.write_at(pages[id][:], position~)
+      file.at(position).write(pages[id])
     } else {
       let length = count * page_size
       let buf = match buffer {
@@ -28,7 +28,7 @@ async fn write_page_runs(
       for i in 0..<count {
         buf.blit_from_bytes(i * page_size, pages[ids[start + i]], 0, page_size)
       }
-      file.write_at(buf.unsafe_reinterpret_as_bytes()[:length], position~)
+      file.at(position).write(buf.unsafe_reinterpret_as_bytes()[:length])
     }
   }
 }
@@ -86,7 +86,7 @@ async fn write_page_batch(
     }
   }
   if pages.get(0) is Some(header) {
-    file.write_at(header[:], position=0L) catch {
+    file.at(0L).write(header) catch {
       err => raise io_error(err)
     }
   }

@@ -35,7 +35,7 @@ async test "a torn wal tail is discarded and the committed prefix stays" {
   txn.commit()
   db.close()
   let wal = "\{path}.wal"
-  @fs.write_file(wal, b"\x01\x02", create_mode=@fs.CreateOrTruncate)
+  @fs.write_binary(wal, b"\x01\x02", create_mode=@fs.CreateOrTruncate)
   let reopened = @vellum.open(path)
   let read = reopened.begin()
   assert_eq(read.get(b"kept"), Some(b"yes"))

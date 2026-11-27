@@ -1,7 +1,7 @@
 ///|
 async test "half a committed wal frame is replayed from the intact prefix" {
   let dir = @fs.tmpdir(prefix="vellum-tear")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/vellum.db"
   let db = open(path)
   let first = db.begin()

@@ -115,6 +115,6 @@ async fn demonstrate(path : String) -> Unit {
 ///|
 async fn main {
   let dir = @fs.tmpdir(prefix="vellum-metadata")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   demonstrate("\{dir}/metadata.db")
 }

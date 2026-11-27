@@ -1,7 +1,7 @@
 ///|
 async test "metadata identity direct directory and signed time survive logical failures" {
   let dir = @fs.tmpdir(prefix="vellum-metadata-test")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = @vellum.open(path)
   let records = [

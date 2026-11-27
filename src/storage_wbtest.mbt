@@ -1,7 +1,7 @@
 ///|
 async test "checkpoint changes only supplied pages and preserves sparse gaps" {
   let dir = @fs.tmpdir(prefix="vellum-sparse-checkpoint")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let original = Bytes::make(64 * page_size, b'u')
   write_synced_bytes(path, original)
@@ -24,7 +24,7 @@ async test "checkpoint changes only supplied pages and preserves sparse gaps" {
 ///|
 async test "cancelled page batch joins workers before the file can be overwritten" {
   let dir = @fs.tmpdir(prefix="vellum-cancel-checkpoint")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let pages : Map[Int32, Bytes] = Map([])
   for id in 0..<4096 {
@@ -58,7 +58,7 @@ async test "failed parallel checkpoint retains complete redo for recovery" {
     return
   }
   let dir = @fs.tmpdir(prefix="vellum-parallel-failure")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = open(path)
   let txn = db.begin()

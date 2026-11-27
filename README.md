@@ -8,15 +8,15 @@ vellum 是用 MoonBit 编写的嵌入式键值存储，直接在应用进程里�
 - 一次事务可以修改多个键，最后统一 `commit`，或用 `abort` 撤销。
 - 重新打开时自动恢复完整已提交的 WAL，并检查页结构。
 
-## 快速开始（0.4.3）
+## 快速开始（0.5.0）
 
-0.4.3 使用 v2 字节字典序格式，包含范围/前缀游标、元数据示例和显式迁移。0.3.0 及更早版本使用 v1 shortlex；升级已有数据库前请阅读下文的显式迁移说明。
+0.5.0 使用 v2 字节字典序格式，包含范围/前缀游标、元数据示例和显式迁移。0.3.0 及更早版本使用 v1 shortlex；升级已有数据库前请阅读下文的显式迁移说明。
 
 在 `moon.mod` 中添加依赖：
 
 ```text
 import {
-  "Nanaloveyuki/vellum@0.4.3",
+  "Nanaloveyuki/vellum@0.5.0",
 }
 ```
 
@@ -25,9 +25,10 @@ import {
 ```text
 import {
   "Nanaloveyuki/vellum",
-  "moonbitlang/async",
+  "moonbitlang/core/async",
 }
 pkgtype(kind: "executable")
+options("allow-experimental-packages": true)
 ```
 
 写入后关掉数据库，再打开读取：
@@ -72,7 +73,7 @@ async fn main {
 
 ## 范围与前缀扫描
 
-以下 API 包含在 0.4.3 中，不适用于 0.3.0。
+以下 API 包含在 0.5.0 中，不适用于 0.3.0。
 
 `Txn.scan(start, end=...)` 按字节字典序遍历 `[start,end)`，省略 `end` 表示无上界；相等边界是空范围，逆序边界报 `InvalidRange`。`Txn.scan_prefix(prefix)` 返回同一种 `Cursor`：空前缀扫描全部键，全 `0xff` 前缀也可使用。
 
@@ -175,7 +176,7 @@ moon run src/cmd/scan_bench --target native --release
 
 ## 开发
 
-本地开发与 CI 由 `.moonbit-toolchain` 固定工具链归档 `0.10.20+65efd5b93`，同时安装对应的编译器、CLI 和 core。对应版本为 `moonc v0.10.20+65efd5b93 (2026-11-05)`、`moon 0.1.20261104`；CLI 与语言版本号分别记录。
+本地开发与 CI 使用 `.moonbit-toolchain` 固定的 `1.0.0-rc1+3c0520448` 归档，该归档包含编译器、`moon 0.1.20261126` 和 core。
 
 在 Bash 中安装与 CI 相同的版本：
 
@@ -188,7 +189,7 @@ moonc -v
 moon update
 ```
 
-安装依赖官方归档可用；归档不可用时安装会失败，不回退到 latest。异步依赖使用最新发布的 `moonbitlang/async@0.22.9`。
+异步任务和磁盘 I/O 使用工具链自带的 `moonbitlang/core/async`。
 
 ```sh
 moon fmt --check
@@ -199,7 +200,7 @@ moon test src --target wasm-gc
 
 磁盘测试在 native 运行；wasm-gc 只用于纯页结构与编码测试，不提供浏览器持久化 API。回归覆盖模型对照、跨页修改、撤销、页复用、缓存失效、I/O 故障与取消。
 
-[CI 工作流](.github/workflows/ci.yml) 在 Ubuntu 上运行上述检查与 native/纯 wasm-gc 测试，再以 native release 执行 `src/cmd/main` 快速示例、`src/cmd/bench` 点查基准、`src/cmd/metadata` 元数据示例和 `src/cmd/scan_bench` 固定结果扫描对照。程序核对失败会使 CI 失败，但不设耗时或性能通过阈值。上述命令是新工具链的验证步骤，不代表已在新版本执行或通过；此前本地通过的结果属于旧工具链，也不代表远程 GitHub CI 已通过。
+Linux x86_64 本地通过 69 个 native 测试和 39 个纯 wasm-gc 测试。Ubuntu CI 还以 native release 模式执行快速示例、点查基准、元数据示例和固定结果扫描对照。程序核对失败会使 CI 失败。 [CI 工作流](.github/workflows/ci.yml)
 
 native 构建需要 C 工具链，磁盘测试和示例需要可写工作目录；wasm-gc 测试使用随工具链安装的 moonrun。真实示例与基准可在仓库根目录运行：
 
@@ -211,6 +212,11 @@ moon run --target native --release src/cmd/scan_bench
 ```
 
 独立进程验证在 WAL 同步后、主文件部分写入后、主文件同步后分别 SIGKILL，再由 0.2.0 和 0.3.0 恢复。六个场景均核对全部 600 条记录，随后成功提交并重开；这不等于整机掉电验证。
+
+## 0.5.0 - 2026-11-27
+
+- 使用 MoonBit 1.0 RC1，文件 IO 迁入标准库 async，保留 v2 磁盘格式。
+- Linux 原生套件通过 69 项测试。Windows 使用 PowerShell 创建迁移测试的符号链接后通过相同的 69 项断言。
 
 ## 0.4.3 - 2026-11-13
 

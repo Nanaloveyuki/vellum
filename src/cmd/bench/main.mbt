@@ -163,7 +163,7 @@ async fn bench_fairness(dir : String, chunk : Int32, sample : Int32) -> Unit {
 ///|
 async fn main {
   let dir = @fs.tmpdir(prefix="vellum-bench")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   println(
     "native release; milliseconds; 3 samples; temporary files; reopen and values checked",
   )

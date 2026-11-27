@@ -40,7 +40,7 @@ fn legacy_test_image(pages : Array[Bytes]) -> Bytes {
 ///|
 async test "genuine empty v1 refusal preserves source and does not create WAL" {
   let dir = @fs.tmpdir(prefix="vellum-legacy-empty")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let original = genuine_empty_v1()
   write_synced_bytes(path, original)
@@ -60,7 +60,7 @@ async test "shortlex v1 refusal validates committed overlay before damaged main"
   let complete = legacy_test_image(pages)
   for torn_main in [false, true] {
     let dir = @fs.tmpdir(prefix="vellum-legacy-overlay")
-    defer @fs.rmdir(dir, recursive=true)
+    defer @fs.remove(dir, recursive=true)
     let path = "\{dir}/db"
     let original = if torn_main { b"damaged" } else { complete }
     write_synced_bytes(path, original)
@@ -86,7 +86,7 @@ async test "corrupt legacy CRC graph and complete WAL beat unsupported format" {
   let pages = shortlex_v1_pages()
   for fault in 0..<3 {
     let dir = @fs.tmpdir(prefix="vellum-legacy-corrupt")
-    defer @fs.rmdir(dir, recursive=true)
+    defer @fs.remove(dir, recursive=true)
     let path = "\{dir}/db"
     let image = FixedArray::make(2 * page_size, b'\x00')
     for i in 0..<pages.length() {

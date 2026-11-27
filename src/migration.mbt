@@ -1,7 +1,7 @@
 ///|
 async fn migration_kind(path : String) -> @fs.FileKind? raise DbError {
   try @fs.kind(path, follow_symlink=false) catch {
-    @os_error.OSError(_, ..) as err if err.is_ENOENT() => None
+    @os_error.OsError(@os_error.NotFound, ..) => None
     err => raise io_error(err)
   } noraise {
     kind => Some(kind)
@@ -61,10 +61,10 @@ async fn migration_require_absent(path : String) -> Unit raise DbError {
 async fn migration_read_source(path : String) -> Bytes raise DbError {
   match migration_kind(path) {
     None => b""
-    Some(@fs.Regular) => {
-      let data = @fs.read_file(path) catch { err => raise io_error(err) }
-      data.binary()
-    }
+    Some(@fs.Regular) =>
+      @fs.read_binary(path) catch {
+        err => raise io_error(err)
+      }
     Some(@fs.SymLink) =>
       raise DbError::Io("migration source symlink rejected: \{path}")
     Some(_) =>

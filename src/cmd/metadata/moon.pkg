@@ -1,8 +1,14 @@
 import {
   "Nanaloveyuki/vellum",
-  "moonbitlang/async",
-  "moonbitlang/async/fs",
+  "moonbitlang/core/async",
+  "moonbitlang/core/async/fs",
   "moonbitlang/core/encoding/utf8",
 }
 
+supported_targets = "native"
+
 pkgtype(kind: "executable")
+
+options(
+  "allow-experimental-packages": true,
+)

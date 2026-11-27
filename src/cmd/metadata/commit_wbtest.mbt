@@ -1,7 +1,7 @@
 ///|
 async test "metadata commit IO failure preserves original error and requires reopen" {
   let dir = @fs.tmpdir(prefix="vellum-metadata-commit")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = @vellum.open(path)
   @fs.mkdir(path)
@@ -19,7 +19,7 @@ async test "metadata commit IO failure preserves original error and requires reo
     _ => fail("failed commit allowed new transaction")
   }
   db.close()
-  @fs.rmdir(path)
+  @fs.remove(path)
   let db = @vellum.open(path)
   verify_all(db, [record])
   db.close()

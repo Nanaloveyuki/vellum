@@ -10,7 +10,7 @@ async fn cursor_error(cursor : Cursor, expected : DbError) -> Unit {
 ///|
 async test "cursor crosses empty leaves without seeking again" {
   let dir = @fs.tmpdir(prefix="vellum-cursor-empty")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let db = open("\{dir}/db")
   let txn = db.begin()
   let tree = db.tree
@@ -41,7 +41,7 @@ async test "cursor crosses empty leaves without seeking again" {
 ///|
 async test "cursor state priority precedes invalidation and EOF during commit and failure" {
   let dir = @fs.tmpdir(prefix="vellum-cursor-state")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = open(path)
   let txn = db.begin()
@@ -91,7 +91,7 @@ async test "cursor state priority precedes invalidation and EOF during commit an
 ///|
 async test "cancelled commit cursor requires recovery before invalidation or EOF" {
   let dir = @fs.tmpdir(prefix="vellum-cursor-cancel")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = open(path)
   let txn = db.begin()

@@ -1,10 +1,6 @@
 name = "Nanaloveyuki/vellum"
 
-version = "0.4.3"
-
-import {
-  "moonbitlang/async@0.22.9",
-}
+version = "0.5.0"
 
 description = "Single-file page store. One writer, crash recovery from a write-ahead log."
 

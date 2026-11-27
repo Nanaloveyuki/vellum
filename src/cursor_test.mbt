@@ -37,7 +37,7 @@ async fn expect_cursor_error(
 ///|
 async test "public cursor matches independent binary ranges prefixes and reopened rows" {
   let dir = @fs.tmpdir(prefix="vellum-cursor")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let path = "\{dir}/db"
   let db = @vellum.open(path)
   let txn = db.begin()
@@ -104,7 +104,7 @@ async test "public cursor matches independent binary ranges prefixes and reopene
 ///|
 async test "every accepted write attempt invalidates cursors even EOF and fresh scans recover" {
   let dir = @fs.tmpdir(prefix="vellum-cursor-write")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let db = @vellum.open("\{dir}/db")
   let txn = db.begin()
   txn.put(b"a", b"kept")

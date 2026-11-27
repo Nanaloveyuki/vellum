@@ -51,9 +51,9 @@ async fn migration_fixture_verify(
 ///|
 async test "migrate genuine multi-page v1 and recoverable missing or torn main" {
   let dir = @fs.tmpdir(prefix="vellum-migration")
-  defer @fs.rmdir(dir, recursive=true)
-  let main = @fs.read_file("src/fixtures/legacy-v1/main.db").binary()
-  let wal = @fs.read_file("src/fixtures/legacy-v1/committed.wal").binary()
+  defer @fs.remove(dir, recursive=true)
+  let main = @fs.read_binary("src/fixtures/legacy-v1/main.db")
+  let wal = @fs.read_binary("src/fixtures/legacy-v1/committed.wal")
   for variant in ["clean", "wal", "torn", "zero", "missing"] {
     let source = "\{dir}/\{variant}.db"
     let destination = "\{dir}/\{variant}-v2.db"
@@ -63,19 +63,19 @@ async test "migrate genuine multi-page v1 and recoverable missing or torn main" 
       _ => main
     }
     if variant != "missing" {
-      @fs.write_file(source, source_bytes, sync=@fs.Full)
+      @fs.write_binary(source, source_bytes, sync=@fs.Full)
     }
     if variant != "clean" {
-      @fs.write_file(wal_path(source), wal, sync=@fs.Full)
+      @fs.write_binary(wal_path(source), wal, sync=@fs.Full)
     }
     migrate_v1(source, destination)
     if variant == "missing" {
       assert_false(@fs.exists(source))
     } else {
-      assert_eq(@fs.read_file(source).binary(), source_bytes)
+      assert_eq(@fs.read_binary(source), source_bytes)
     }
     if variant != "clean" {
-      assert_eq(@fs.read_file(wal_path(source)).binary(), wal)
+      assert_eq(@fs.read_binary(wal_path(source)), wal)
     }
     assert_false(@fs.exists(wal_path(destination)))
     migration_fixture_verify(destination, updated=variant != "clean")
@@ -85,11 +85,11 @@ async test "migrate genuine multi-page v1 and recoverable missing or torn main" 
 ///|
 async test "migration rejects occupied destination source aliases and dangling links" {
   let dir = @fs.tmpdir(prefix="vellum-migration-reject")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let source = "\{dir}/source.db"
   let destination = "\{dir}/converted.db"
-  let source_bytes = @fs.read_file("src/fixtures/legacy-v1/main.db").binary()
-  @fs.write_file(source, source_bytes, sync=@fs.Full)
+  let source_bytes = @fs.read_binary("src/fixtures/legacy-v1/main.db")
+  @fs.write_binary(source, source_bytes, sync=@fs.Full)
   for path in [destination, wal_path(destination)] {
     @fs.symlink(target="missing", path)
     try migrate_v1(source, destination) catch {
@@ -121,14 +121,14 @@ async test "migration rejects occupied destination source aliases and dangling l
   } noraise {
     _ => fail("source WAL symlink accepted")
   }
-  assert_eq(@fs.read_file(source).binary(), source_bytes)
+  assert_eq(@fs.read_binary(source), source_bytes)
   assert_false(@fs.exists(destination))
 }
 
 ///|
 async test "migration persists empty v2 and rejects missing source or corrupt complete WAL" {
   let dir = @fs.tmpdir(prefix="vellum-migration-empty")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let source = "\{dir}/source.db"
   let destination = "\{dir}/v2.db"
   try migrate_v1(source, destination) catch {
@@ -137,8 +137,8 @@ async test "migration persists empty v2 and rejects missing source or corrupt co
   } noraise {
     _ => fail("missing source accepted")
   }
-  let source_bytes = @fs.read_file("src/fixtures/legacy-v1/empty.db").binary()
-  @fs.write_file(source, source_bytes, sync=@fs.Full)
+  let source_bytes = @fs.read_binary("src/fixtures/legacy-v1/empty.db")
+  @fs.write_binary(source, source_bytes, sync=@fs.Full)
   migrate_v1(source, destination)
   let db = open(destination)
   let txn = db.begin()
@@ -147,25 +147,25 @@ async test "migration persists empty v2 and rejects missing source or corrupt co
   db.close()
   assert_true(@fs.file_size(destination) >= page_size.to_int64())
   let corrupt = Bytes::make(20, 0)
-  @fs.write_file(wal_path(source), corrupt, sync=@fs.Full)
+  @fs.write_binary(wal_path(source), corrupt, sync=@fs.Full)
   try migrate_v1(source, "\{dir}/bad.db") catch {
     DbError::Corrupt => ()
     err => fail("wrong corrupt-WAL error: \{err}")
   } noraise {
     _ => fail("corrupt complete WAL accepted")
   }
-  assert_eq(@fs.read_file(source).binary(), source_bytes)
-  assert_eq(@fs.read_file(wal_path(source)).binary(), corrupt)
+  assert_eq(@fs.read_binary(source), source_bytes)
+  assert_eq(@fs.read_binary(wal_path(source)), corrupt)
 }
 
 ///|
 async test "migration cancellation race preserves source and never publishes a partial target" {
   let dir = @fs.tmpdir(prefix="vellum-migration-cancel")
-  defer @fs.rmdir(dir, recursive=true)
+  defer @fs.remove(dir, recursive=true)
   let source = "\{dir}/source.db"
   let destination = "\{dir}/v2.db"
-  let source_bytes = @fs.read_file("src/fixtures/legacy-v1/main.db").binary()
-  @fs.write_file(source, source_bytes, sync=@fs.Full)
+  let source_bytes = @fs.read_binary("src/fixtures/legacy-v1/main.db")
+  @fs.write_binary(source, source_bytes, sync=@fs.Full)
   let mut finished = false
   @async.with_task_group(async fn(group) {
     let job = group.spawn(async fn() {
@@ -189,7 +189,7 @@ async test "migration cancellation race preserves source and never publishes a p
       _ => ()
     }
   })
-  assert_eq(@fs.read_file(source).binary(), source_bytes)
+  assert_eq(@fs.read_binary(source), source_bytes)
   assert_false(@fs.exists(wal_path(source)))
   if @fs.exists(destination) {
     migration_fixture_verify(destination, updated=false)
